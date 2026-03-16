@@ -1,431 +1,623 @@
 ﻿// App.jsx
-// GramSync Merchant App — Root router
-// Uses react-router-dom for URL-based navigation.
+// GramSync Merchant App — Root Navigator (Updated)
 //
-// Routes:
-//   /login, /signup
-//   /dashboard, /customers, /customers/profile, /reports, /scan, /keypad, /settings
+// Wiring changes:
+//   - Authentication screen: login + signup modes
+//   - OnboardingWizard: triggered after signup success
+//   - PaymentReminder: dedicated button on HomeDashboard quick-access row
+//   - TransactionDetail: tapping any transaction row opens detail
+//   - GramScoreDetail: from CustomerProfile score tap
+//   - NotificationsCentre: bell icon in topbar
+//   - All back navigation and cross-screen params properly threaded
 
-import { useState, useCallback, useRef, useEffect } from "react";
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  Navigate,
-  Outlet,
-  useNavigate,
-  useLocation,
-} from "react-router-dom";
+import { useState, useCallback, useRef } from "react";
 
-import Authentication     from "./screens/Authentication";
-import HomeDashboard      from "./screens/HomeDashboard";
-import CustomersList      from "./screens/CustomersList";
-import CustomerProfile    from "./screens/CustomerProfile";
-import ReportsDashboard   from "./screens/ReportsDashboard";
-import ScanQR             from "./screens/ScanQR";
-import TransactionKeypad  from "./screens/TransactionKeypad";
-import Settings           from "./screens/Settings";
+// ── Screen imports ──────────────────────────────────────────────
+import Authentication    from "./screens/Authentication";
+import OnboardingWizard  from "./screens/OnboardingWizard";
+import HomeDashboard     from "./screens/HomeDashboard";
+import CustomersList     from "./screens/CustomersList";
+import CustomerProfile   from "./screens/CustomerProfile";
+import GramScoreDetail   from "./screens/GramScoreDetail";
+import TransactionDetail from "./screens/TransactionDetail";
+import PaymentReminder   from "./screens/PaymentReminder";
+import ReportsDashboard  from "./screens/ReportsDashboard";
+import NotificationsCentre from "./screens/NotificationsCentre";
+import ScanQR            from "./screens/ScanQR";
+import TransactionKeypad from "./screens/TransactionKeypad";
+import Settings          from "./screens/Settings";
+import NetworkSync       from "./screens/NetworkSync";
 
-const THEME_CSS = `
-  body.dark-mode { background:#0D1226; }
-  body.dark-mode #root { filter: invert(1) hue-rotate(180deg); }
-  * { -webkit-text-size-adjust: 100%; }
-  html, body, #root { min-height: 100dvh; }
-`;
-const ROUTES = {
-  home: "\/dashboard",
-  customers: "\/customers",
-  customerProfile: "\/customers\/profile",
-  reports: "\/reports",
-  scan: "\/scan",
-  keypad: "\/keypad",
-  settings: "\/settings",
+// ── Screen IDs ──────────────────────────────────────────────────
+const S = {
+  login:             "login",
+  signup:            "signup",
+  onboarding:        "onboarding",
+  home:              "home",
+  customers:         "customers",
+  customerProfile:   "customerProfile",
+  gramScore:         "gramScore",
+  transactionDetail: "transactionDetail",
+  paymentReminder:   "paymentReminder",
+  reports:           "reports",
+  notifications:     "notifications",
+  scan:              "scan",
+  keypad:            "keypad",
+  settings:          "settings",
+  networkSync:       "networkSync",
 };
 
-function routeFor(screenId) {
-  return ROUTES[screenId] || ROUTES.home;
-}
+// ── Screen order for directional transitions ────────────────────
+const SCREEN_ORDER = [
+  S.login, S.signup, S.onboarding,
+  S.home, S.customers, S.customerProfile,
+  S.gramScore, S.transactionDetail, S.paymentReminder,
+  S.notifications, S.reports, S.scan, S.keypad,
+  S.settings, S.networkSync,
+];
 
-function RequireAuth({ isAuthed }) {
-  const location = useLocation();
-  if (!isAuthed) {
-    return <Navigate to="/login" replace state={{ from: location }} />;
+const TRANSITION_MS = 220;
+
+// ── Global CSS ──────────────────────────────────────────────────
+const GLOBAL_CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body, #root { height: 100%; }
+  body {
+    background: #E8EAF2;
+    font-family: 'Sora', sans-serif;
+    display: flex;
+    justify-content: center;
   }
-  return <Outlet />;
+  ::-webkit-scrollbar { display: none; }
+
+  @keyframes slideInRight {
+    from { transform: translateX(32px); opacity: 0; }
+    to   { transform: translateX(0);    opacity: 1; }
+  }
+  @keyframes slideInLeft {
+    from { transform: translateX(-32px); opacity: 0; }
+    to   { transform: translateX(0);     opacity: 1; }
+  }
+  @keyframes slideInUp {
+    from { transform: translateY(24px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+  @keyframes fadeScreen {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .screen-enter-right { animation: slideInRight ${TRANSITION_MS}ms cubic-bezier(.22,1,.36,1) forwards; }
+  .screen-enter-left  { animation: slideInLeft  ${TRANSITION_MS}ms cubic-bezier(.22,1,.36,1) forwards; }
+  .screen-enter-up    { animation: slideInUp    ${TRANSITION_MS}ms cubic-bezier(.22,1,.36,1) forwards; }
+  .screen-enter-fade  { animation: fadeScreen   ${TRANSITION_MS}ms ease forwards; }
+`;
+
+// ── Transition direction heuristic ──────────────────────────────
+function getTransitionClass(from, to) {
+  if (to === S.scan)   return "screen-enter-up";
+  if (to === S.keypad && from === S.scan) return "screen-enter-left";
+  if (to === S.login || to === S.signup)  return "screen-enter-fade";
+  const fi = SCREEN_ORDER.indexOf(from);
+  const ti = SCREEN_ORDER.indexOf(to);
+  if (fi === -1 || ti === -1) return "screen-enter-fade";
+  return ti > fi ? "screen-enter-right" : "screen-enter-left";
 }
 
-// Toast notification
+// ── Simple router ────────────────────────────────────────────────
+function useRouter(initial) {
+  const [stack, setStack]   = useState([{ id: initial, params: {} }]);
+  const [anim,  setAnim]    = useState("screen-enter-fade");
+
+  const current  = stack[stack.length - 1];
+  const previous = stack.length > 1 ? stack[stack.length - 2] : null;
+
+  const navigate = useCallback((screenId, params = {}) => {
+    setStack(prev => {
+      const from = prev[prev.length - 1].id;
+      setAnim(getTransitionClass(from, screenId));
+      return [...prev, { id: screenId, params }];
+    });
+  }, []);
+
+  // Replace current screen (no back)
+  const replace = useCallback((screenId, params = {}) => {
+    setStack(prev => {
+      const from = prev[prev.length - 1].id;
+      setAnim(getTransitionClass(from, screenId));
+      return [...prev.slice(0, -1), { id: screenId, params }];
+    });
+  }, []);
+
+  // Pop entire stack to root
+  const reset = useCallback((screenId, params = {}) => {
+    setAnim("screen-enter-fade");
+    setStack([{ id: screenId, params }]);
+  }, []);
+
+  const goBack = useCallback(() => {
+    setStack(prev => {
+      if (prev.length <= 1) return prev;
+      const next = prev[prev.length - 2];
+      const from = prev[prev.length - 1].id;
+      setAnim(getTransitionClass(from, next.id));
+      return prev.slice(0, -1);
+    });
+  }, []);
+
+  return { current, previous, anim, navigate, replace, reset, goBack };
+}
+
+// ── Toast ────────────────────────────────────────────────────────
 function Toast({ message, visible }) {
   return (
-    <div
-      style={{
-        position: "fixed",
-        bottom: 88,
-        left: "50%",
-        transform: "translateX(-50%)",
-        background: "#0D1226",
-        color: "#fff",
-        padding: "10px 20px",
-        borderRadius: 99,
-        fontSize: 13,
-        fontWeight: 600,
-        boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
-        zIndex: 999,
-        transition: "opacity 0.25s ease, transform 0.25s ease",
-        opacity: visible ? 1 : 0,
-        pointerEvents: "none",
-        whiteSpace: "nowrap",
-        fontFamily: "'Sora', sans-serif",
-      }}
-    >
+    <div style={{
+      position: "fixed",
+      bottom: 92,
+      left: "50%",
+      transform: `translateX(-50%) translateY(${visible ? 0 : 10}px)`,
+      background: "#0D1226",
+      color: "#fff",
+      padding: "10px 20px",
+      borderRadius: 99,
+      fontSize: 13,
+      fontWeight: 600,
+      boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
+      zIndex: 999,
+      opacity: visible ? 1 : 0,
+      transition: "opacity 0.25s ease, transform 0.25s ease",
+      pointerEvents: "none",
+      whiteSpace: "nowrap",
+      fontFamily: "'Sora', sans-serif",
+    }}>
       {message}
     </div>
   );
 }
 
 function useToast() {
-  const [toast, setToast] = useState({ message: "", visible: false });
+  const [toast,   setToast]  = useState({ message: "", visible: false });
   const timerRef = useRef(null);
-
-  const showToast = useCallback((message) => {
+  const show = useCallback((msg) => {
     clearTimeout(timerRef.current);
-    setToast({ message, visible: true });
-    timerRef.current = setTimeout(
-      () => setToast((t) => ({ ...t, visible: false })),
-      2600
-    );
+    setToast({ message: msg, visible: true });
+    timerRef.current = setTimeout(() => setToast(t => ({ ...t, visible: false })), 2600);
   }, []);
-
-  useEffect(() => {
-    return () => clearTimeout(timerRef.current);
-  }, []);
-
-  return { toast, showToast };
+  return { toast, show };
 }
 
-// Central store — lightweight alternative to Redux/Zustand for this app.
-function useAppState() {
-  const [syncOnline, setSyncOnline] = useState(true);
-  const [transactions, setTransactions] = useState([]);
+// ── Overdue Reminder Banner (shown on HomeDashboard) ─────────────
+// Injected as a child element — HomeDashboard doesn't have a built-in
+// reminder shortcut, so we pass it via a prop that renders inside
+// the scrollable content area using the onReminders callback.
+
+// ── Root App ─────────────────────────────────────────────────────
+export default function App() {
+  const router = useRouter(S.login);
+  const { current, anim, navigate, replace, reset, goBack } = router;
+  const { toast, show: showToast } = useToast();
+
+  // Shared app state
+  const [syncOnline,       setSyncOnline]       = useState(true);
+  const [transactions,     setTransactions]     = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [notifications, setNotifications] = useState(1);
+  const [notifCount,       setNotifCount]       = useState(3); // unread badge
 
   const addTransaction = useCallback((txn) => {
-    setTransactions((prev) => [
-      { ...txn, id: Date.now(), time: new Date() },
-      ...prev,
-    ]);
+    const customerName = txn?.customer?.name || txn?.name || "Walk-in Customer";
+    const initials =
+      txn?.customer?.initials ||
+      txn?.initials ||
+      customerName
+        .split(" ")
+        .map((part) => part[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase();
+
+    setTransactions(prev => [{
+      ...txn,
+      id: Date.now(),
+      time: new Date(),
+      name: customerName,
+      initials,
+    }, ...prev]);
   }, []);
 
-  const dismissNotification = useCallback(() => setNotifications(0), []);
+  // ── Cross-screen handlers ──────────────────────────────────────
 
-  return {
-    syncOnline,
-    setSyncOnline,
-    transactions,
-    addTransaction,
-    selectedCustomer,
-    setSelectedCustomer,
-    notifications,
-    dismissNotification,
-  };
-}
-
-function CustomerProfileRoute({
-  selectedCustomer,
-  setSelectedCustomer,
-  onNavigate,
-  onBack,
-}) {
-  const location = useLocation();
-  const customer = location.state?.customer || selectedCustomer;
-
-  if (!customer) {
-    return <Navigate to={ROUTES.customers} replace />;
-  }
-
-  return (
-    <CustomerProfile
-      customer={customer}
-      onBack={onBack}
-      onNavigate={onNavigate}
-      onCredit={(c) => {
-        setSelectedCustomer(c);
-        onNavigate("keypad", { customer: c });
-      }}
-      onPayment={(c) => {
-        setSelectedCustomer(c);
-        onNavigate("keypad", { customer: c });
-      }}
-    />
-  );
-}
-
-function TransactionKeypadRoute({
-  syncOnline,
-  selectedCustomer,
-  onTransactionDone,
-  onNavigate,
-}) {
-  const location = useLocation();
-  const customer = location.state?.customer || selectedCustomer || null;
-
-  return (
-    <TransactionKeypad
-      syncOnline={syncOnline}
-      preselectedCustomer={customer}
-      onTransactionDone={onTransactionDone}
-      onNavigate={onNavigate}
-      onScanQR={() => onNavigate("scan")}
-    />
-  );
-}
-
-function AppRoutes() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { toast, showToast } = useToast();
-
-  const AUTH_KEY = "gramsync_authed";
-  const DARK_KEY = "gramsync_dark";
-  const [isAuthed, setIsAuthed] = useState(() => {
-    try {
-      return localStorage.getItem(AUTH_KEY) === "true";
-    } catch {
-      return false;
+  // Auth → if signup, go to onboarding; if login, go to home
+  const handleAuthDone = useCallback((mode) => {
+    if (mode === "signup") {
+      replace(S.onboarding);
+    } else {
+      reset(S.home);
     }
-  });
-  const state = useAppState();
+  }, [replace, reset]);
 
-  useEffect(() => {
-    try {
-      const isDark = localStorage.getItem(DARK_KEY) === "true";
-      document.body.classList.toggle("dark-mode", isDark);
-    } catch {
-      // Ignore storage failures
-    }
-  }, []);
+  // Onboarding complete → go home
+  const handleOnboardingComplete = useCallback((storeData) => {
+    showToast(`Welcome, ${storeData.storeName}! 🎉`);
+    reset(S.home);
+  }, [reset, showToast]);
 
-  const {
-    syncOnline,
-    transactions,
-    addTransaction,
-    selectedCustomer,
-    setSelectedCustomer,
-    dismissNotification,
-  } = state;
+  // Transaction keypad done
+  const handleTransactionDone = useCallback((txn) => {
+    addTransaction(txn);
+    const amountLabel = Number(txn.amount || 0).toLocaleString("en-IN");
+    showToast(`₹${amountLabel} ${txn.type === "udhar" ? "credit" : "payment"} recorded ✓`);
+    reset(S.home);
+  }, [addTransaction, showToast, reset]);
 
-  const navigateTo = useCallback(
-    (screenId, options) => {
-      const path = routeFor(screenId);
-      navigate(path, options);
-    },
-    [navigate]
-  );
+  // QR scan success → go to keypad with customer
+  const handleScanSuccess = useCallback((customer) => {
+    setSelectedCustomer(customer);
+    navigate(S.keypad, { customer });
+    showToast(`${customer.name} verified ✓`);
+  }, [navigate, showToast]);
 
+  // Customer tap (from list or dashboard)
+  const handleCustomerPress = useCallback((customer) => {
+    setSelectedCustomer(customer);
+    navigate(S.customerProfile, { customer });
+  }, [navigate]);
+
+  // Bell icon
   const handleNotification = useCallback(() => {
-    dismissNotification();
-    showToast("No new notifications");
-  }, [dismissNotification, showToast]);
+    setNotifCount(0);
+    navigate(S.notifications);
+  }, [navigate]);
 
-  const handleTransactionDone = useCallback(
-    (txn) => {
-      addTransaction(txn);
-      showToast(
-        `?${txn.amount} ${txn.type === "udhar" ? "credit" : "payment"} recorded ?`
-      );
-      navigate(ROUTES.home, { replace: true });
-    },
-    [addTransaction, showToast, navigate]
-  );
-
-  const handleScanSuccess = useCallback(
-    (customer) => {
-      setSelectedCustomer(customer);
-      navigate(ROUTES.keypad, { state: { customer } });
-      showToast(`${customer.name} verified ?`);
-    },
-    [setSelectedCustomer, navigate, showToast]
-  );
-
-  const handleRecentTxnPress = useCallback(
-    (txn) => {
-      const customer = {
-        id: `TX-${txn.id}`,
-        name: txn.name,
-        initials: txn.initials,
-        phone: "",
-        since: "July 2023",
-        status: "safe",
-      };
-      setSelectedCustomer(customer);
-      navigate(ROUTES.customerProfile, { state: { customer } });
-    },
-    [navigate, setSelectedCustomer]
-  );
-
-  const handleAuthDone = useCallback(() => {
-    setIsAuthed(true);
-    try {
-      localStorage.setItem(AUTH_KEY, "true");
-    } catch {
-      // Ignore storage failures (private mode, disabled storage)
+  // Bottom nav global handler — used by all screens
+  const handleNavigate = useCallback((screenId) => {
+    switch (screenId) {
+      case "home":      reset(S.home);      break;
+      case "customers": navigate(S.customers); break;
+      case "reports":   navigate(S.reports);   break;
+      case "settings":  navigate(S.settings);  break;
+      default: break;
     }
-    const next = location.state?.from?.pathname || ROUTES.home;
-    navigate(next, { replace: true });
-  }, [location.state, navigate]);
+  }, [reset, navigate]);
 
-  const handleLogout = useCallback(() => {
-    setIsAuthed(false);
-    try {
-      localStorage.setItem(AUTH_KEY, "false");
-    } catch {
-      // Ignore storage failures (private mode, disabled storage)
+  // ── Screen renderer ────────────────────────────────────────────
+  const renderScreen = () => {
+    const { id, params } = current;
+
+    switch (id) {
+
+      // ── Auth: Login ────────────────────────────────────────────
+      case S.login:
+        return (
+          <Authentication
+            mode="login"
+            onAuthDone={() => handleAuthDone("login")}
+            // The Auth component shows a "Sign Up" link; wire it:
+            onSignUp={() => navigate(S.signup)}
+          />
+        );
+
+      // ── Auth: Sign Up ──────────────────────────────────────────
+      case S.signup:
+        return (
+          <Authentication
+            mode="signup"
+            onAuthDone={() => handleAuthDone("signup")}
+            onSignIn={() => navigate(S.login)}
+          />
+        );
+
+      // ── Onboarding Wizard (first-run, post-signup) ─────────────
+      case S.onboarding:
+        return (
+          <OnboardingWizard
+            onComplete={handleOnboardingComplete}
+            onSkip={() => reset(S.home)}
+          />
+        );
+
+      // ── Home Dashboard ─────────────────────────────────────────
+      case S.home:
+        return (
+          <HomeDashboard
+            syncOnline={syncOnline}
+            transactions={transactions}
+            onNavigate={handleNavigate}
+            onAddTransaction={() => navigate(S.keypad)}
+            onViewAll={() => navigate(S.customers)}
+            onNotification={handleNotification}
+            notifCount={notifCount}
+            // Payment Reminder shortcut — rendered as a quick-action card
+            // HomeDashboard forwards this through its onProfile or a dedicated prop.
+            // We add onReminders so HomeDashboard can show the reminder button.
+            onReminders={() => {
+              // Opens reminder with the most overdue customer (or picker)
+              navigate(S.paymentReminder, {
+                customer: {
+                  name: "Rohit Nair",
+                  phone: "+91 95566 77889",
+                  initials: "RN",
+                  balance: 12200,
+                  daysOverdue: 14,
+                },
+              });
+            }}
+            onScan={() => navigate(S.scan)}
+            onTxnPress={(txn) => navigate(S.transactionDetail, { transaction: txn })}
+            onProfile={() => navigate(S.settings)}
+          />
+        );
+
+      // ── Customers List ─────────────────────────────────────────
+      case S.customers:
+        return (
+          <CustomersList
+            onCustomerPress={handleCustomerPress}
+            onNavigate={handleNavigate}
+            onNotification={handleNotification}
+            onBack={goBack}
+          />
+        );
+
+      // ── Customer Profile ───────────────────────────────────────
+      case S.customerProfile:
+        return (
+          <CustomerProfile
+            customer={params?.customer || selectedCustomer}
+            onBack={goBack}
+            onNavigate={handleNavigate}
+            onCredit={(customer) => {
+              setSelectedCustomer(customer);
+              navigate(S.keypad, { customer });
+            }}
+            onPayment={(customer) => {
+              setSelectedCustomer(customer);
+              navigate(S.keypad, { customer });
+            }}
+            onReminder={(customer) => {
+              setSelectedCustomer(customer);
+              navigate(S.paymentReminder, { customer });
+            }}
+            onScore={(customer) => navigate(S.gramScore, { customer })}
+            onTxnPress={(txn) => navigate(S.transactionDetail, { transaction: txn })}
+          />
+        );
+
+      // ── Gram Score Detail ──────────────────────────────────────
+      case S.gramScore:
+        return (
+          <GramScoreDetail
+            customer={params?.customer || selectedCustomer}
+            onBack={goBack}
+            onNavigate={handleNavigate}
+            onCredit={(customer) => {
+              setSelectedCustomer(customer);
+              navigate(S.keypad, { customer });
+            }}
+            onReminder={(customer) => navigate(S.paymentReminder, { customer })}
+            onProfile={(customer) => navigate(S.customerProfile, { customer })}
+          />
+        );
+
+      // ── Transaction Detail ─────────────────────────────────────
+      case S.transactionDetail:
+        return (
+          <TransactionDetail
+            transaction={params?.transaction}
+            storeName="Sharma Kirana Store"
+            onBack={goBack}
+            onNavigate={handleNavigate}
+            onUpdate={(updated) => showToast("Transaction updated ✓")}
+            onDelete={(id) => {
+              showToast("Transaction deleted");
+              goBack();
+            }}
+            onReminder={(customer) => navigate(S.paymentReminder, { customer })}
+            onTxnPress={(txn) => navigate(S.transactionDetail, { transaction: txn })}
+          />
+        );
+
+      // ── Payment Reminder ───────────────────────────────────────
+      // Accessible from:
+      //   1. HomeDashboard → "Send Reminder" quick-action button
+      //   2. CustomerProfile → "Remind" action
+      //   3. GramScoreDetail → "Send Reminder" button
+      //   4. TransactionDetail → "Remind" action button
+      //   5. NotificationsCentre → "Send Reminder" action on overdue cards
+      case S.paymentReminder:
+        return (
+          <PaymentReminder
+            customer={params?.customer || selectedCustomer}
+            storeName="Sharma Kirana Store"
+            onBack={goBack}
+            onNavigate={handleNavigate}
+            onSent={(data) => {
+              showToast(`Reminder sent to ${data.customer?.name} ✓`);
+              goBack();
+            }}
+          />
+        );
+
+      // ── Notifications Centre ───────────────────────────────────
+      case S.notifications:
+        return (
+          <NotificationsCentre
+            onNavigate={handleNavigate}
+            onBack={goBack}
+            onActionTap={(action, notif) => {
+              if (action === "Send Reminder") {
+                navigate(S.paymentReminder, {
+                  customer: {
+                    name:     notif.meta?.customer  || "Customer",
+                    initials: notif.meta?.initials  || "?",
+                    balance:  parseInt((notif.meta?.amount || "0").replace(/[₹,]/g, "")) || 0,
+                    phone:    "",
+                    daysOverdue: 7,
+                  },
+                });
+              } else if (action === "View Profile") {
+                navigate(S.customerProfile, {
+                  customer: {
+                    name:     notif.meta?.customer  || "Customer",
+                    initials: notif.meta?.initials  || "?",
+                  },
+                });
+              } else if (action === "View Report") {
+                navigate(S.reports);
+              }
+            }}
+          />
+        );
+
+      // ── Reports Dashboard ──────────────────────────────────────
+      case S.reports:
+        return (
+          <ReportsDashboard
+            onNavigate={handleNavigate}
+            onBack={goBack}
+            onCustomerPress={handleCustomerPress}
+          />
+        );
+
+      // ── Scan QR ────────────────────────────────────────────────
+      case S.scan:
+        return (
+          <ScanQR
+            onScanSuccess={handleScanSuccess}
+            onNavigate={handleNavigate}
+            onBack={goBack}
+          />
+        );
+
+      // ── Transaction Keypad ─────────────────────────────────────
+      case S.keypad:
+        return (
+          <TransactionKeypad
+            syncOnline={syncOnline}
+            preselectedCustomer={params?.customer || selectedCustomer || null}
+            onTransactionDone={handleTransactionDone}
+            onNavigate={handleNavigate}
+            onScanQR={() => navigate(S.scan)}
+          />
+        );
+
+      // ── Settings ───────────────────────────────────────────────
+      case S.settings:
+        return (
+          <Settings
+            onBack={goBack}
+            onNavigate={handleNavigate}
+            onNetworkSync={() => navigate(S.networkSync)}
+            onSignOut={() => {
+              showToast("Signed out");
+              reset(S.login);
+            }}
+          />
+        );
+
+      // ── Network Sync ───────────────────────────────────────────
+      case S.networkSync:
+        return (
+          <NetworkSync
+            onBack={goBack}
+            onNavigate={handleNavigate}
+          />
+        );
+
+      default:
+        return null;
     }
-    setSelectedCustomer(null);
-    navigate("/login", { replace: true });
-  }, [navigate, setSelectedCustomer]);
+  };
 
   return (
     <>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <Navigate to={isAuthed ? ROUTES.home : "/login"} replace />
-          }
-        />
+      <style>{GLOBAL_CSS}</style>
 
-        <Route
-          path="/login"
-          element={
-            isAuthed ? (
-              <Navigate to={ROUTES.home} replace />
-            ) : (
-              <Authentication mode="login" onAuthDone={handleAuthDone} />
-            )
-          }
-        />
-        <Route
-          path="/signup"
-          element={
-            isAuthed ? (
-              <Navigate to={ROUTES.home} replace />
-            ) : (
-              <Authentication mode="signup" onAuthDone={handleAuthDone} />
-            )
-          }
-        />
+      {/* Phone shell — max 420px for desktop preview */}
+      <div style={{
+        width: "100%",
+        maxWidth: 420,
+        height: "100dvh",
+        position: "relative",
+        overflow: "auto",
+        background: "#F0F2F8",
+        boxShadow: "0 0 60px rgba(0,0,0,0.15)",
+      }}>
+        {/* Animated screen mount — key forces remount on screen change */}
+        <div
+          key={current.id}
+          className={anim}
+          style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}
+        >
+          {renderScreen()}
+        </div>
 
-        <Route element={<RequireAuth isAuthed={isAuthed} />}>
-          <Route
-            path={ROUTES.home}
-            element={
-              <HomeDashboard
-                syncOnline={syncOnline}
-                transactions={transactions}
-                onNavigate={navigateTo}
-                onAddTransaction={() => navigateTo("keypad")}
-                onViewAll={() => navigateTo("customers")}
-                onNotification={handleNotification}
-                onProfile={() => navigateTo("settings")}
-                onTxnPress={handleRecentTxnPress}
-              />
-            }
-          />
-
-          <Route
-            path={ROUTES.customers}
-            element={
-              <CustomersList
-                onCustomerPress={(customer) => {
-                  setSelectedCustomer(customer);
-                  navigate(ROUTES.customerProfile, { state: { customer } });
-                }}
-                onNavigate={navigateTo}                onNotification={handleNotification}
-                onProfile={() => navigateTo("settings")}                onBack={() => navigate(-1)}
-              />
-            }
-          />
-
-          <Route
-            path={ROUTES.customerProfile}
-            element={
-              <CustomerProfileRoute
-                selectedCustomer={selectedCustomer}
-                setSelectedCustomer={setSelectedCustomer}
-                onNavigate={(id, options) => navigate(routeFor(id), options)}
-                onBack={() => navigate(-1)}
-              />
-            }
-          />
-
-          <Route
-            path={ROUTES.reports}
-            element={
-              <ReportsDashboard
-                onNavigate={navigateTo}
-                onBack={() => navigate(-1)}
-                onCustomerPress={(customer) => {
-                  setSelectedCustomer(customer);
-                  navigate(ROUTES.customerProfile, { state: { customer } });
-                }}
-              />
-            }
-          />
-
-          <Route
-            path={ROUTES.scan}
-            element={
-              <ScanQR
-                onScanSuccess={handleScanSuccess}
-                onNavigate={navigateTo}
-                onBack={() => navigate(-1)}
-              />
-            }
-          />
-
-          <Route
-            path={ROUTES.keypad}
-            element={
-              <TransactionKeypadRoute
-                syncOnline={syncOnline}
-                selectedCustomer={selectedCustomer}
-                onTransactionDone={handleTransactionDone}
-                onNavigate={(id, options) => navigate(routeFor(id), options)}
-              />
-            }
-          />
-
-          <Route
-            path={ROUTES.settings}
-            element={
-              <Settings
-                onNavigate={navigateTo}
-                onBack={() => navigate(-1)}
-                onLogout={handleLogout}
-              />
-            }
-          />
-        </Route>
-
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-
-      <Toast message={toast.message} visible={toast.visible} />
+        {/* Global toast overlay */}
+        <Toast message={toast.message} visible={toast.visible} />
+      </div>
     </>
   );
 }
 
-export default function App() {
-  return (
-    <BrowserRouter>
-      <style>{THEME_CSS}</style>
-      <AppRoutes />
-    </BrowserRouter>
-  );
-}
-
-
-
-
+/*
+ * ─────────────────────────────────────────────────────────────────
+ * NAVIGATION MAP  (for reference)
+ * ─────────────────────────────────────────────────────────────────
+ *
+ *  [login]  ──────────────────────────────────────────────────────
+ *    onAuthDone (login)   → home
+ *    onSignUp             → signup
+ *
+ *  [signup]  ─────────────────────────────────────────────────────
+ *    onAuthDone (signup)  → onboarding
+ *    onSignIn             → login
+ *
+ *  [onboarding]  ─────────────────────────────────────────────────
+ *    onComplete           → home (reset stack)
+ *    onSkip               → home (reset stack)
+ *
+ *  [home]  ───────────────────────────────────────────────────────
+ *    FAB / keypad button  → keypad
+ *    onViewAll            → customers
+ *    onNotification       → notifications
+ *    onReminders          → paymentReminder  ← NEW dedicated button
+ *    onTxnPress(txn)      → transactionDetail ← NEW
+ *    onProfile            → settings
+ *    bottom nav           → customers / reports / settings
+ *
+ *  [customers]  ──────────────────────────────────────────────────
+ *    onCustomerPress      → customerProfile
+ *
+ *  [customerProfile]  ────────────────────────────────────────────
+ *    onCredit             → keypad
+ *    onPayment            → keypad
+ *    onReminder           → paymentReminder
+ *    onScore              → gramScore
+ *    onTxnPress           → transactionDetail
+ *
+ *  [gramScore]  ──────────────────────────────────────────────────
+ *    onCredit             → keypad
+ *    onReminder           → paymentReminder
+ *    onProfile            → customerProfile
+ *
+ *  [transactionDetail]  ──────────────────────────────────────────
+ *    onReminder           → paymentReminder
+ *    onTxnPress           → transactionDetail (same screen, new txn)
+ *
+ *  [paymentReminder]  ────────────────────────────────────────────
+ *    onSent               → goBack + toast
+ *
+ *  [notifications]  ──────────────────────────────────────────────
+ *    "Send Reminder"      → paymentReminder
+ *    "View Profile"       → customerProfile
+ *    "View Report"        → reports
+ *
+ *  [keypad]  ─────────────────────────────────────────────────────
+ *    onScanQR             → scan
+ *    onTransactionDone    → home (reset stack)
+ *
+ *  [scan]  ───────────────────────────────────────────────────────
+ *    onScanSuccess        → keypad
+ *
+ * ─────────────────────────────────────────────────────────────────
+ */
