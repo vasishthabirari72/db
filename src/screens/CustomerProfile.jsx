@@ -662,6 +662,9 @@ export default function CustomerProfile({
   onNavigate   = () => {},
   onCredit     = () => {},
   onPayment    = () => {},
+  onReminder   = null,
+  onScore      = null,
+  onTxnPress   = null,
 }) {
   const resolvedCustomer = { ...DEFAULT_CUSTOMER, ...customer };
   const [filter,   setFilter]   = useState("All");
@@ -674,6 +677,33 @@ export default function CustomerProfile({
     setSheet(null);
     alert(`\u2713 Reminder sent via ${channel}`);
   }, []);
+
+  const handleReminder = useCallback(() => {
+    if (onReminder) {
+      onReminder(resolvedCustomer);
+      return;
+    }
+
+    setSheet("reminder");
+  }, [onReminder, resolvedCustomer]);
+
+  const handleScore = useCallback(() => {
+    if (onScore) {
+      onScore(resolvedCustomer);
+      return;
+    }
+
+    setSheet("score");
+  }, [onScore, resolvedCustomer]);
+
+  const handleTransactionPress = useCallback((transaction) => {
+    if (onTxnPress) {
+      onTxnPress(transaction);
+      return;
+    }
+
+    setSheet(transaction);
+  }, [onTxnPress]);
 
   return (
     <>
@@ -697,8 +727,8 @@ export default function CustomerProfile({
             customer={resolvedCustomer}
             onCredit={() => onCredit(resolvedCustomer)}
             onPayment={() => onPayment(resolvedCustomer)}
-            onReminder={() => setSheet("reminder")}
-            onScore={() => setSheet("score")}
+            onReminder={handleReminder}
+            onScore={handleScore}
           />
           <div style={{ background:"#fff" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 16px 0" }}>
@@ -714,7 +744,7 @@ export default function CustomerProfile({
           <TransactionList
             transactions={transactions}
             filter={filter}
-            onTxnPress={tx => setSheet(tx)}
+            onTxnPress={handleTransactionPress}
           />
         </div>
 
