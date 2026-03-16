@@ -42,7 +42,7 @@ const DEFAULT_CUSTOMERS = [
   },
   {
     id: 2,
-    name: "Priya Devi",
+    name: "Priy Devi",
     phone: "+91 98221 55667",
     initials: "PD",
     score: 512,
