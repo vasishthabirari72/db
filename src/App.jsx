@@ -1,4 +1,4 @@
-﻿// App.jsx
+// App.jsx
 // GramSync Merchant App — Root Navigator (Updated)
 //
 // Wiring changes:
