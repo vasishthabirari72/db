@@ -1,5 +1,5 @@
 ﻿// HomeDashboard.jsx
-// GramSync Merchant App ? Home Screen
+// GramSync Merchant App - Home Screen
 // Fonts: import 'Sora' + 'JetBrains Mono' in your index.html or global CSS
 // Deps: none (pure React + inline styles / CSS-in-JS via <style> tag)
 
@@ -89,7 +89,7 @@ function HeroCard({ amount = "45,280.00", change = "+5.2%" }) {
         Total Outstanding Credit
       </div>
       <div style={{ fontSize:34, fontWeight:800, fontFamily:"'JetBrains Mono', monospace", marginBottom:8 }}>
-        ?{amount}
+        {"\u20B9"}{amount}
       </div>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <span style={{
@@ -97,7 +97,7 @@ function HeroCard({ amount = "45,280.00", change = "+5.2%" }) {
           background:"rgba(255,255,255,0.18)", borderRadius:8,
           padding:"3px 10px", fontSize:12, fontWeight:700,
         }}>
-          ? {change}
+          {"\u2191"} {change}
         </span>
         <span style={{ fontSize:11, opacity:0.65, display:"flex", alignItems:"center", gap:5 }}>
           <SyncIcon size={13} color="rgba(255,255,255,0.8)" />
@@ -112,8 +112,8 @@ function HeroCard({ amount = "45,280.00", change = "+5.2%" }) {
 function StatsRow({ udharCount = 12, jamaCount = 8 }) {
   return (
     <div style={{ display:"flex", gap:12, margin:"0 16px 12px" }}>
-      <StatCard label="UDHAR" labelColor={t.orange} icon="?" count={udharCount} sub="Credits Today" delay={120} />
-      <StatCard label="JAMA"  labelColor={t.green}  icon="?" count={jamaCount}  sub="Payments Today" delay={200} />
+      <StatCard label="UDHAR" labelColor={t.orange} icon="\u25B2" count={udharCount} sub="Credits Today" delay={120} />
+      <StatCard label="JAMA"  labelColor={t.green}  icon="\u25BC" count={jamaCount}  sub="Payments Today" delay={200} />
     </div>
   );
 }
@@ -168,9 +168,9 @@ function SyncHealth({ status = "EXCELLENT", message = "Persistent queue is empty
 
 // â”€â”€â”€ Recent Transactions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const TRANSACTIONS = [
-  { id:1, name:"Rajesh Kumar",  initials:"RK", type:"Udhar", time:"10:45 AM",  amount:"−₹450",   amountColor:t.orange, status:"SYNCED",  statusColor:t.green,  avatarBg:t.bluePale,  avatarColor:t.blue  },
-  { id:2, name:"Anita Sharma",  initials:"AS", type:"Jama",  time:"09:12 AM",  amount:"+₹1,200",  amountColor:t.green,  status:"PENDING", statusColor:t.yellow, avatarBg:t.greenPale, avatarColor:t.green },
-  { id:3, name:"Vikram Singh",  initials:"VS", type:"Udhar", time:"Yesterday", amount:"−₹2,100",  amountColor:t.orange, status:"SYNCED",  statusColor:t.green,  avatarBg:t.bluePale,  avatarColor:t.blue  },
+  { id:1, name:"Rajesh Kumar",  initials:"RK", type:"Udhar", time:"10:45 AM",  amount:"\u2212\u20B9450",   amountColor:t.orange, status:"SYNCED",  statusColor:t.green,  avatarBg:t.bluePale,  avatarColor:t.blue  },
+  { id:2, name:"Anita Sharma",  initials:"AS", type:"Jama",  time:"09:12 AM",  amount:"+\u20B91,200",  amountColor:t.green,  status:"PENDING", statusColor:t.yellow, avatarBg:t.greenPale, avatarColor:t.green },
+  { id:3, name:"Vikram Singh",  initials:"VS", type:"Udhar", time:"Yesterday", amount:"\u2212\u20B92,100",  amountColor:t.orange, status:"SYNCED",  statusColor:t.green,  avatarBg:t.bluePale,  avatarColor:t.blue  },
 ];
 
 function RecentTransactions({ onViewAll, onTxnPress }) {
@@ -209,14 +209,14 @@ function TxnRow({ tx, delay, onPress }) {
       <Avatar initials={tx.initials} bg={tx.avatarBg} color={tx.avatarColor} size={42} />
       <div style={{ flex:1 }}>
         <div style={{ fontSize:14, fontWeight:600, color:t.text }}>{tx.name}</div>
-        <div style={{ fontSize:11, color:t.muted, marginTop:1 }}>{tx.type} ? {tx.time}</div>
+        <div style={{ fontSize:11, color:t.muted, marginTop:1 }}>{tx.type} {"\u00B7"} {tx.time}</div>
       </div>
       <div style={{ textAlign:"right" }}>
         <div style={{ fontSize:14, fontWeight:700, fontFamily:"'JetBrains Mono', monospace", color:tx.amountColor }}>
           {tx.amount}
         </div>
         <div style={{ fontSize:10, fontWeight:600, marginTop:2, color:tx.statusColor }}>
-          {tx.status === "SYNCED" ? "? " : "? "}{tx.status}
+          {tx.status === "SYNCED" ? "\u2713 " : "\u23F3 "}{tx.status}
         </div>
       </div>
     </Card>
