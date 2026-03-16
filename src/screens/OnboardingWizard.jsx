@@ -540,7 +540,7 @@ function StepCreditLimit({ data, onChange, onNext, onBack }) {
       <div style={{ display:"flex", gap:10, marginTop:20 }}>
         <BackBtn onClick={onBack}/>
         <div style={{ flex:1 }}>
-          <PrimaryBtn label="Generate My QR Card" onClick={onNext} icon="✦"/>
+          <PrimaryBtn label="Finish Setup" onClick={onNext} icon="✦"/>
         </div>
       </div>
     </div>
@@ -684,15 +684,13 @@ function MerchantQRCard({ data, storeId, animate }) {
 
 function StepQRReveal({ data, storeId, onComplete }) {
   const [confetti, setConfetti] = useState(false);
-  const [cardVisible, setCardVisible] = useState(false);
   const [btnVisible, setBtnVisible] = useState(false);
 
   useEffect(() => {
-    const t1 = setTimeout(() => setCardVisible(true), 200);
-    const t2 = setTimeout(() => setConfetti(true),    400);
-    const t3 = setTimeout(() => setConfetti(false),   3000);
-    const t4 = setTimeout(() => setBtnVisible(true),  900);
-    return () => [t1,t2,t3,t4].forEach(clearTimeout);
+    const t1 = setTimeout(() => setConfetti(true), 400);
+    const t2 = setTimeout(() => setConfetti(false), 3000);
+    const t3 = setTimeout(() => setBtnVisible(true), 900);
+    return () => [t1, t2, t3].forEach(clearTimeout);
   }, []);
 
   const catObj = CATEGORIES.find(c => c.id === data.category) || CATEGORIES[0];
@@ -717,13 +715,66 @@ function StepQRReveal({ data, storeId, onComplete }) {
           Your store is ready! 🎉
         </div>
         <div style={{ fontSize:13, color:t.muted, lineHeight:1.6 }}>
-          Here's your unique GramSync Merchant QR Card.<br/>Share it with customers to start recording Udhar.
+          Your merchant profile and credit settings are all set.<br/>You can start recording transactions right away.
         </div>
       </div>
 
-      {/* QR Card */}
-      <div style={{ marginBottom:20 }}>
-        <MerchantQRCard data={data} storeId={storeId} animate={cardVisible}/>
+      <div style={{
+        marginBottom:20,
+        background:"#fff",
+        borderRadius:24,
+        padding:"22px 20px",
+        boxShadow:"0 10px 30px rgba(13,18,38,0.08)",
+        border:`1px solid ${t.border}`,
+        animation:"cardReveal 0.55s cubic-bezier(.22,1,.36,1) 0.1s both",
+      }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:18 }}>
+          <div style={{
+            width:52,
+            height:52,
+            borderRadius:"50%",
+            background:t.bluePale,
+            color:t.blue,
+            display:"flex",
+            alignItems:"center",
+            justifyContent:"center",
+            fontSize:20,
+            fontWeight:800,
+            flexShrink:0,
+          }}>
+            {(data.ownerName || "GS").split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase()}
+          </div>
+          <div>
+            <div style={{ fontSize:17, fontWeight:800, color:t.text }}>
+              {data.storeName || "Your Store"}
+            </div>
+            <div style={{ fontSize:12, color:t.muted, marginTop:3 }}>
+              {data.city || "India"} · {catObj.label}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(2, minmax(0, 1fr))", gap:10 }}>
+          {[
+            { label:"Store ID", value:storeId },
+            { label:"Credit Limit", value:`₹${(data.creditLimit || 2000).toLocaleString("en-IN")}` },
+            { label:"Owner", value:data.ownerName || "Not set" },
+            { label:"Category", value:catObj.label },
+          ].map((item) => (
+            <div key={item.label} style={{
+              background:t.bg,
+              borderRadius:14,
+              padding:"12px 14px",
+            }}>
+              <div style={{ fontSize:10, fontWeight:700, color:t.muted, letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:5 }}>
+                {item.label}
+              </div>
+              <div style={{ fontSize:13, fontWeight:700, color:t.text, lineHeight:1.4 }}>
+                {item.value}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Store summary pills */}
@@ -746,27 +797,9 @@ function StepQRReveal({ data, storeId, onComplete }) {
         ))}
       </div>
 
-      {/* Share + Continue buttons */}
+      {/* Continue button */}
       {btnVisible && (
         <div style={{ display:"flex", flexDirection:"column", gap:10, animation:"fadeUp 0.35s ease both" }}>
-          <button style={{
-            width:"100%", padding:"14px", borderRadius:14, border:`1.5px solid ${t.blue}`,
-            background:"#fff", color:t.blue,
-            fontFamily:"'Sora',sans-serif", fontWeight:700, fontSize:14,
-            cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8,
-            transition:"background 0.15s",
-          }}
-            onMouseEnter={e => e.currentTarget.style.background = t.bluePale}
-            onMouseLeave={e => e.currentTarget.style.background = "#fff"}
-          >
-            <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
-              <circle cx="18" cy="5" r="3" stroke={t.blue} strokeWidth="1.8"/>
-              <circle cx="6" cy="12" r="3" stroke={t.blue} strokeWidth="1.8"/>
-              <circle cx="18" cy="19" r="3" stroke={t.blue} strokeWidth="1.8"/>
-              <path d="M8.59 13.51l6.83 3.98M15.41 6.51L8.59 10.49" stroke={t.blue} strokeWidth="1.8" strokeLinecap="round"/>
-            </svg>
-            Share QR Card
-          </button>
           <PrimaryBtn label="Go to Dashboard" onClick={onComplete} icon="→"/>
         </div>
       )}

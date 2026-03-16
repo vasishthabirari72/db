@@ -141,22 +141,8 @@ function StatCard({ label, labelColor, icon, count, sub, delay }) {
 // â”€â”€â”€ Sync Health â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // --- Quick Actions Row ---
-function QuickActions({ onScan, onReminders, onCustomers }) {
+function QuickActions({ onReminders, onCustomers }) {
   const actions = [
-    {
-      label: "Scan QR",
-      icon: (
-        <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
-          <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2" stroke="#2347F5" strokeWidth="1.8" strokeLinecap="round"/>
-          <rect x="7" y="7" width="4" height="4" rx="1" stroke="#2347F5" strokeWidth="1.8"/>
-          <rect x="13" y="7" width="4" height="4" rx="1" stroke="#2347F5" strokeWidth="1.8"/>
-          <rect x="7" y="13" width="4" height="4" rx="1" stroke="#2347F5" strokeWidth="1.8"/>
-          <path d="M13 13h4v4" stroke="#2347F5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      ),
-      iconBg: "#EEF1FF",
-      onClick: onScan,
-    },
     {
       label: "Send Reminders",
       badge: "3 overdue",
@@ -185,7 +171,7 @@ function QuickActions({ onScan, onReminders, onCustomers }) {
   return (
     <div style={{ margin: "0 16px 16px" }}>
       <div style={{ fontSize: 13, fontWeight: 700, color: "#0D1226", marginBottom: 10 }}>Quick Actions</div>
-      <div style={{ display: "flex", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
         {actions.map((a, i) => (
           <button
             key={i}
@@ -408,8 +394,9 @@ function FAB({ onClick }) {
       onTouchEnd={() => setPressed(false)}
       onClick={onClick}
       style={{
-        position:"fixed", bottom:80,
-        right: "max(16px, calc(50% - 194px))",
+        position:"absolute",
+        bottom:"calc(84px + env(safe-area-inset-bottom))",
+        right: 16,
         width:52, height:52, borderRadius:"50%",
         background:t.blue, color:"#fff", border:"none",
         fontSize:26, cursor:"pointer",
@@ -565,7 +552,6 @@ export default function HomeDashboard({
   onProfile      = () => {},
   onTxnPress     = () => {},
   onReminders    = () => {},
-  onScan         = () => {},
 }) {
   return (
     <>
@@ -584,7 +570,7 @@ export default function HomeDashboard({
         <div style={{ flex:1, overflowY:"auto", paddingBottom:"calc(20px + env(safe-area-inset-bottom))" }}>
           <HeroCard amount={totalCredit} change={creditChange} />
           <StatsRow udharCount={udharCount} jamaCount={jamaCount} />
-          <QuickActions onScan={onScan} onReminders={onReminders} onCustomers={onViewAll} />
+          <QuickActions onReminders={onReminders} onCustomers={onViewAll} />
           <SyncHealth status={syncStatus} message={syncMessage} />
           <RecentTransactions transactions={transactions} onViewAll={onViewAll} onTxnPress={onTxnPress} />
           {/* Bottom spacer so FAB doesn't cover last row */}
