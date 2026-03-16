@@ -254,7 +254,7 @@ function ReminderSheet({ customer, onSend, onClose }) {
         <div className="sheet-handle"/>
         <div style={{ fontSize:16, fontWeight:700, color:t.text, marginBottom:4 }}>Send Payment Reminder</div>
         <div style={{ fontSize:12, color:t.muted, marginBottom:18 }}>
-          to <strong style={{ color:t.text }}>{customer.name}</strong> â€” Balance: <strong style={{ color:t.orange }}>₹{customer.balance.toLocaleString("en-IN")}</strong>
+          to <strong style={{ color:t.text }}>{customer.name}</strong> - Balance: <strong style={{ color:t.orange }}>₹{customer.balance.toLocaleString("en-IN")}</strong>
         </div>
 
         {/* Channel selector */}
