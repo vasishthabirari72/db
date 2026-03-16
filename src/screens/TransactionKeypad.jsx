@@ -339,7 +339,7 @@ const SAMPLE_CUSTOMERS = [
 
 const STATUS_COLORS = { safe: t.green, caution: t.yellow, "high-risk": t.red, new: t.blue };
 
-function CustomerSheet({ onSelect, onClose }) {
+function CustomerSheet({ onSelect, onScanQR, onClose }) {
   const [query, setQuery] = useState("");
   const filtered = SAMPLE_CUSTOMERS.filter(c =>
     !query || c.name.toLowerCase().includes(query.toLowerCase()) || c.phone.includes(query)
@@ -370,6 +370,27 @@ function CustomerSheet({ onSelect, onClose }) {
               display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 700,
             }}>\u00D7</button>
           </div>
+
+          <button onClick={onScanQR} style={{
+            width: "100%", padding: "13px 16px", borderRadius: 12,
+            background: t.blue, color: "#fff", border: "none",
+            fontFamily: "'Sora', sans-serif", fontWeight: 700, fontSize: 14,
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+            gap: 8, marginBottom: 12,
+            boxShadow: "0 3px 14px rgba(35,71,245,0.3)",
+            animation: "pulseGlow 2s ease-in-out infinite",
+          }}>
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
+              <rect x="3" y="3" width="7" height="7" rx="1" stroke="#fff" strokeWidth="1.8"/>
+              <rect x="14" y="3" width="7" height="7" rx="1" stroke="#fff" strokeWidth="1.8"/>
+              <rect x="3" y="14" width="7" height="7" rx="1" stroke="#fff" strokeWidth="1.8"/>
+              <rect x="14" y="14" width="3" height="3" fill="#fff" rx="0.5"/>
+              <rect x="18" y="14" width="3" height="3" fill="#fff" rx="0.5"/>
+              <rect x="14" y="18" width="3" height="3" fill="#fff" rx="0.5"/>
+              <rect x="18" y="18" width="3" height="3" fill="#fff" rx="0.5"/>
+            </svg>
+            Scan QR Identity Card
+          </button>
 
           {/* Search */}
           <div style={{ position: "relative" }}>
@@ -429,7 +450,7 @@ function CustomerSheet({ onSelect, onClose }) {
 }
 
 // â”€â”€â”€ Topbar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-function Topbar({ syncOnline }) {
+function Topbar({ syncOnline, onScanQR }) {
   return (
     <div style={{
       background: "#fff",
@@ -463,7 +484,25 @@ function Topbar({ syncOnline }) {
           <div style={{ width: 7, height: 7, borderRadius: "50%", background: syncOnline ? t.green : t.yellow }} />
           SYNC: {syncOnline ? "ONLINE" : "OFFLINE"}
         </div>
-
+        <button onClick={onScanQR} style={{
+          width: 38, height: 38, background: t.bluePale, border: "none",
+          borderRadius: 10, cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          transition: "background 0.15s",
+        }}
+          onMouseEnter={e => e.currentTarget.style.background = "#dde3ff"}
+          onMouseLeave={e => e.currentTarget.style.background = t.bluePale}
+        >
+          <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
+            <rect x="3" y="3" width="7" height="7" rx="1" stroke={t.blue} strokeWidth="1.8"/>
+            <rect x="14" y="3" width="7" height="7" rx="1" stroke={t.blue} strokeWidth="1.8"/>
+            <rect x="3" y="14" width="7" height="7" rx="1" stroke={t.blue} strokeWidth="1.8"/>
+            <rect x="14" y="14" width="3" height="3" fill={t.blue} rx="0.5"/>
+            <rect x="18" y="14" width="3" height="3" fill={t.blue} rx="0.5"/>
+            <rect x="14" y="18" width="3" height="3" fill={t.blue} rx="0.5"/>
+            <rect x="18" y="18" width="3" height="3" fill={t.blue} rx="0.5"/>
+          </svg>
+        </button>
       </div>
     </div>
   );
@@ -723,12 +762,14 @@ function BottomNav({ active = "keypad", onNavigate }) {
  *  - syncOnline         {boolean}               default true
  *  - onTransactionDone  {(txn) => void}          called after success
  *  - onNavigate         {(screenId) => void}
+ *  - onScanQR           {() => void}
  *  - preselectedCustomer {object|null}           pre-fill customer (e.g. coming from scan result)
  */
 export default function TransactionKeypad({
   syncOnline           = true,
   onTransactionDone    = () => {},
   onNavigate           = () => {},
+  onScanQR             = () => {},
   preselectedCustomer  = null,
 }) {
   const [value,        setValue]       = useState("");
@@ -798,7 +839,7 @@ export default function TransactionKeypad({
         margin: "0 auto", fontFamily: "'Sora', sans-serif",
         position: "relative", overflow: "hidden",
       }}>
-        <Topbar syncOnline={syncOnline} />
+        <Topbar syncOnline={syncOnline} onScanQR={onScanQR} />
 
         {/* â”€â”€ Amount area â”€â”€ */}
         <div style={{
@@ -843,6 +884,7 @@ export default function TransactionKeypad({
         {showCustSheet && (
           <CustomerSheet
             onSelect={c => { setCustomer(c); setCustSheet(false); }}
+            onScanQR={() => { setCustSheet(false); onScanQR(); }}
             onClose={() => setCustSheet(false)}
           />
         )}

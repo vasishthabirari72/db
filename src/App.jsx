@@ -10,6 +10,7 @@ import NotificationsCentre from "./screens/NotificationsCentre";
 import OnboardingWizard from "./screens/OnboardingWizard";
 import PaymentReminder from "./screens/PaymentReminder";
 import ReportsDashboard from "./screens/ReportsDashboard";
+import ScanQR from "./screens/ScanQR";
 import Settings from "./screens/Settings";
 import TransactionDetail from "./screens/TransactionDetail";
 import TransactionKeypad from "./screens/TransactionKeypad";
@@ -26,6 +27,7 @@ const S = {
   paymentReminder: "paymentReminder",
   reports: "reports",
   notifications: "notifications",
+  scan: "scan",
   keypad: "keypad",
   settings: "settings",
   networkSync: "networkSync",
@@ -43,6 +45,7 @@ const SCREEN_ORDER = [
   S.paymentReminder,
   S.notifications,
   S.reports,
+  S.scan,
   S.keypad,
   S.settings,
   S.networkSync,
@@ -60,6 +63,7 @@ const SCREEN_PATHS = {
   [S.paymentReminder]: "/reminders/payment",
   [S.reports]: "/reports",
   [S.notifications]: "/notifications",
+  [S.scan]: "/scan",
   [S.keypad]: "/transactions/keypad",
   [S.settings]: "/settings",
   [S.networkSync]: "/settings/network-sync",
@@ -333,6 +337,14 @@ function buildScoreData(customer) {
 }
 
 function getTransitionClass(from, to) {
+  if (to === S.scan) {
+    return "screen-enter-up";
+  }
+
+  if (to === S.keypad && from === S.scan) {
+    return "screen-enter-left";
+  }
+
   if (to === S.login || to === S.signup) {
     return "screen-enter-fade";
   }
@@ -532,6 +544,13 @@ export default function App() {
     );
     reset(S.home);
   }, [addTransaction, reset, selectedCustomer, showToast]);
+
+  const handleScanSuccess = useCallback((customer) => {
+    const normalisedCustomer = normaliseCustomer(customer);
+    setSelectedCustomer(normalisedCustomer);
+    navigate(S.keypad, { customer: normalisedCustomer });
+    showToast(`${normalisedCustomer.name} verified \u2713`);
+  }, [navigate, showToast]);
 
   const handleCustomerPress = useCallback((customer) => {
     const normalisedCustomer = normaliseCustomer(customer);
@@ -772,6 +791,15 @@ export default function App() {
           />
         );
 
+      case S.scan:
+        return (
+          <ScanQR
+            onScanSuccess={handleScanSuccess}
+            onNavigate={handleTabNavigation}
+            onBack={() => goBack(S.keypad)}
+          />
+        );
+
       case S.keypad:
         return (
           <TransactionKeypad
@@ -779,6 +807,7 @@ export default function App() {
             preselectedCustomer={resolvedCustomer || selectedCustomer || null}
             onTransactionDone={handleTransactionDone}
             onNavigate={handleTabNavigation}
+            onScanQR={() => navigate(S.scan)}
           />
         );
 
