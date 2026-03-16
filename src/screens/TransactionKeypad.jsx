@@ -238,6 +238,7 @@ function SuccessSheet({ type, amount, customer, remarks, onDone, onNewTransactio
   const isUdhar = type === "udhar";
   const color   = isUdhar ? t.orange : t.green;
   const bgColor = isUdhar ? t.orangePale : t.greenPale;
+  const formattedAmount = Number(amount || 0).toLocaleString("en-IN");
 
   return (
     <div style={{
@@ -814,7 +815,7 @@ export default function TransactionKeypad({
   const handleAction = useCallback((type) => {
     const num = parseFloat(value);
     if (!num || num <= 0) { triggerShake(); return; }
-    setSuccessData({ type, amount: parseFloat(value).toLocaleString("en-IN"), customer });
+    setSuccessData({ type, amount: num, customer });
   }, [value, customer, triggerShake]);
 
   const handleDone = useCallback(() => {

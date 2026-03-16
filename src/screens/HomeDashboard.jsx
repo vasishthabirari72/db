@@ -139,6 +139,106 @@ function StatCard({ label, labelColor, icon, count, sub, delay }) {
 }
 
 // â”€â”€â”€ Sync Health â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+// --- Quick Actions Row ---
+function QuickActions({ onScan, onReminders, onCustomers }) {
+  const actions = [
+    {
+      label: "Scan QR",
+      icon: (
+        <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
+          <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2" stroke="#2347F5" strokeWidth="1.8" strokeLinecap="round"/>
+          <rect x="7" y="7" width="4" height="4" rx="1" stroke="#2347F5" strokeWidth="1.8"/>
+          <rect x="13" y="7" width="4" height="4" rx="1" stroke="#2347F5" strokeWidth="1.8"/>
+          <rect x="7" y="13" width="4" height="4" rx="1" stroke="#2347F5" strokeWidth="1.8"/>
+          <path d="M13 13h4v4" stroke="#2347F5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      ),
+      iconBg: "#EEF1FF",
+      onClick: onScan,
+    },
+    {
+      label: "Send Reminders",
+      badge: "3 overdue",
+      icon: (
+        <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
+          <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke="#F56A00" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      ),
+      iconBg: "#FFF0E5",
+      onClick: onReminders,
+    },
+    {
+      label: "Customers",
+      icon: (
+        <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
+          <circle cx="9" cy="7" r="4" stroke="#0BAF60" strokeWidth="1.8"/>
+          <path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2" stroke="#0BAF60" strokeWidth="1.8" strokeLinecap="round"/>
+          <path d="M16 3.13a4 4 0 010 7.75M21 21v-2a4 4 0 00-3-3.87" stroke="#0BAF60" strokeWidth="1.8" strokeLinecap="round"/>
+        </svg>
+      ),
+      iconBg: "#E6F9F0",
+      onClick: onCustomers,
+    },
+  ];
+
+  return (
+    <div style={{ margin: "0 16px 16px" }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#0D1226", marginBottom: 10 }}>Quick Actions</div>
+      <div style={{ display: "flex", gap: 10 }}>
+        {actions.map((a, i) => (
+          <button
+            key={i}
+            onClick={a.onClick}
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 7,
+              padding: "13px 8px",
+              background: "#fff",
+              border: "1.5px solid #E2E6F3",
+              borderRadius: 14,
+              cursor: "pointer",
+              fontFamily: "'Sora', sans-serif",
+              transition: "box-shadow 0.15s, transform 0.12s",
+              position: "relative",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 3px 12px rgba(0,0,0,0.08)"; }}
+            onMouseLeave={e => { e.currentTarget.style.boxShadow = "none"; }}
+            onMouseDown={e => { e.currentTarget.style.transform = "scale(0.96)"; }}
+            onMouseUp={e => { e.currentTarget.style.transform = "scale(1)"; }}
+          >
+            <div style={{
+              width: 38, height: 38, borderRadius: 10,
+              background: a.iconBg,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              position: "relative",
+            }}>
+              {a.icon}
+              {a.badge && (
+                <span style={{
+                  position: "absolute", top: -5, right: -5,
+                  background: "#E8304A", color: "#fff",
+                  borderRadius: 99, fontSize: 8, fontWeight: 800,
+                  padding: "2px 5px", whiteSpace: "nowrap",
+                  border: "2px solid #fff",
+                }}>
+                  {a.badge}
+                </span>
+              )}
+            </div>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "#0D1226", textAlign: "center", lineHeight: 1.3 }}>
+              {a.label}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SyncHealth({ status = "EXCELLENT", message = "Persistent queue is empty. All transactions are synced to cloud." }) {
   const isExcellent = status === "EXCELLENT";
   return (
@@ -177,18 +277,31 @@ const FALLBACK_TRANSACTIONS = [
 ];
 
 function formatTransaction(tx) {
-  const amountNumber = Number(tx.amount || 0);
+  const rawAmount = tx.amount;
+  const amountNumber = typeof rawAmount === "string"
+    ? parseFloat(rawAmount.replace(/,/g, ""))
+    : Number(rawAmount || 0);
   const isCredit = String(tx.type || "").toLowerCase() === "udhar";
+  const customerName = tx.name || tx.customer?.name || "Walk-in Customer";
+  const initialsSource = tx.initials || tx.customer?.initials || customerName;
+  const initials = initialsSource
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+  const timeValue = tx.time ? new Date(tx.time) : null;
+  const timeLabel = timeValue && !Number.isNaN(timeValue.getTime())
+    ? timeValue.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+    : (tx.time || "Just now");
 
   return {
     id: tx.id,
-    name: tx.name || "Walk-in Customer",
-    initials: tx.initials || (tx.name || "Walk-in Customer").split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase(),
+    name: customerName,
+    initials,
     type: isCredit ? "Udhar" : "Jama",
-    time: tx.time
-      ? new Date(tx.time).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
-      : "Just now",
-    amount: `${isCredit ? "-" : "+"}\u20B9${Math.abs(amountNumber).toLocaleString("en-IN")}`,
+    time: timeLabel,
+    amount: `${isCredit ? "-" : "+"}\u20B9${Math.abs(amountNumber || 0).toLocaleString("en-IN")}`,
     amountColor: isCredit ? t.orange : t.green,
     status: "SYNCED",
     statusColor: t.green,
@@ -451,6 +564,8 @@ export default function HomeDashboard({
   onNotification = () => {},
   onProfile      = () => {},
   onTxnPress     = () => {},
+  onReminders    = () => {},
+  onScan         = () => {},
 }) {
   return (
     <>
@@ -469,6 +584,7 @@ export default function HomeDashboard({
         <div style={{ flex:1, overflowY:"auto", paddingBottom:"calc(20px + env(safe-area-inset-bottom))" }}>
           <HeroCard amount={totalCredit} change={creditChange} />
           <StatsRow udharCount={udharCount} jamaCount={jamaCount} />
+          <QuickActions onScan={onScan} onReminders={onReminders} onCustomers={onViewAll} />
           <SyncHealth status={syncStatus} message={syncMessage} />
           <RecentTransactions transactions={transactions} onViewAll={onViewAll} onTxnPress={onTxnPress} />
           {/* Bottom spacer so FAB doesn't cover last row */}
@@ -481,5 +597,3 @@ export default function HomeDashboard({
     </>
   );
 }
-
-

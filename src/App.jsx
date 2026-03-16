@@ -205,7 +205,24 @@ export default function App() {
   const [notifCount,       setNotifCount]       = useState(3); // unread badge
 
   const addTransaction = useCallback((txn) => {
-    setTransactions(prev => [{ ...txn, id: Date.now(), time: new Date() }, ...prev]);
+    const customerName = txn?.customer?.name || txn?.name || "Walk-in Customer";
+    const initials =
+      txn?.customer?.initials ||
+      txn?.initials ||
+      customerName
+        .split(" ")
+        .map((part) => part[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase();
+
+    setTransactions(prev => [{
+      ...txn,
+      id: Date.now(),
+      time: new Date(),
+      name: customerName,
+      initials,
+    }, ...prev]);
   }, []);
 
   // ── Cross-screen handlers ──────────────────────────────────────
@@ -228,7 +245,8 @@ export default function App() {
   // Transaction keypad done
   const handleTransactionDone = useCallback((txn) => {
     addTransaction(txn);
-    showToast(`₹${txn.amount} ${txn.type === "udhar" ? "credit" : "payment"} recorded ✓`);
+    const amountLabel = Number(txn.amount || 0).toLocaleString("en-IN");
+    showToast(`₹${amountLabel} ${txn.type === "udhar" ? "credit" : "payment"} recorded ✓`);
     reset(S.home);
   }, [addTransaction, showToast, reset]);
 
@@ -519,9 +537,9 @@ export default function App() {
       <div style={{
         width: "100%",
         maxWidth: 420,
-        minHeight: "100vh",
+        height: "100dvh",
         position: "relative",
-        overflow: "hidden",
+        overflow: "auto",
         background: "#F0F2F8",
         boxShadow: "0 0 60px rgba(0,0,0,0.15)",
       }}>

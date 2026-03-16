@@ -703,6 +703,8 @@ function ProgressBar({ step, total }) {
 export default function Authentication({
   mode       = "login",
   onAuthDone = () => {},
+  onSignUp   = () => {},
+  onSignIn   = () => {},
 }) {
   // Steps: phone → otp → pin → success
   const STEPS = mode === "login"
@@ -742,9 +744,22 @@ export default function Authentication({
               <span style={{ fontSize:16, fontWeight:800, color:t.text }}>GramSync</span>
             </div>
 
-            <div style={{ fontSize:11, fontWeight:700, color:t.muted, letterSpacing:"0.04em", textTransform:"uppercase" }}>
-              {mode === "login" ? "Sign In" : "Sign Up"}
-            </div>
+            <button
+              onClick={mode === "login" ? onSignUp : onSignIn}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                fontSize: 11,
+                fontWeight: 800,
+                color: t.blue,
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+                padding: 4,
+              }}
+            >
+              {mode === "login" ? "Sign Up" : "Sign In"}
+            </button>
           </div>
 
           {/* Progress */}
