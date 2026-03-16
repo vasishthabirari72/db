@@ -1,5 +1,9 @@
 [build]
-  base = "my-react-app"
+  # The directory where your main package.json is located (optional, usually only needed for monorepos)
+  # base = "client" 
+  
+  # The build command your project uses (e.g., npm run build, yarn build)
   command = "npm run build"
+  
+  # The directory containing your built production files (e.g., dist, build, out)
   publish = "dist"
-
