@@ -14,6 +14,7 @@ import ScanQR from "./screens/ScanQR";
 import Settings from "./screens/Settings";
 import TransactionDetail from "./screens/TransactionDetail";
 import TransactionKeypad from "./screens/TransactionKeypad";
+import { clearSession } from "./api/authService";
 
 const S = {
   login: "login",
@@ -260,6 +261,9 @@ function normaliseCustomer(rawCustomer = {}) {
     balanceColor: rawCustomer.balanceColor || (status === "high-risk" ? "#E8304A" : "#0D1226"),
     daysOverdue: rawCustomer.daysOverdue ?? (status === "high-risk" ? 14 : status === "caution" ? 5 : 0),
     lastActivity,
+    scoreBreakdown: rawCustomer.scoreBreakdown || null,
+    networkPercentile: rawCustomer.networkPercentile ?? null,
+    scoreHistory: rawCustomer.scoreHistory || null,
   };
 }
 
@@ -304,13 +308,18 @@ function normaliseTransaction(rawTransaction = {}, fallbackCustomer) {
 
 function buildScoreData(customer) {
   const resolvedCustomer = normaliseCustomer(customer);
+  const scoreBreakdown = resolvedCustomer.scoreBreakdown;
   const scorePct = resolvedCustomer.maxScore
     ? (resolvedCustomer.gramScore / resolvedCustomer.maxScore) * 100
     : 0;
-  const repayment = clamp(Math.round(scorePct + 8), 32, 95);
-  const frequency = clamp(Math.round(scorePct + (resolvedCustomer.daysOverdue > 0 ? -5 : 10)), 28, 92);
-  const history = clamp(Math.round(scorePct - 4), 25, 88);
-  const balance = clamp(
+  const repayment = scoreBreakdown?.find((factor) => factor.label === "Repayment rate")?.score
+    ?? clamp(Math.round(scorePct + 8), 32, 95);
+  const frequency = scoreBreakdown?.find((factor) => factor.label === "Payment frequency")?.score
+    ?? clamp(Math.round(scorePct + (resolvedCustomer.daysOverdue > 0 ? -5 : 10)), 28, 92);
+  const history = scoreBreakdown?.find((factor) => factor.label === "Credit history")?.score
+    ?? clamp(Math.round(scorePct - 4), 25, 88);
+  const balance = scoreBreakdown?.find((factor) => factor.label === "Balance vs limit")?.score
+    ?? clamp(
     Math.round(100 - ((resolvedCustomer.balance / Math.max(resolvedCustomer.creditLimit, 1)) * 100) + 18),
     20,
     90,
@@ -326,13 +335,13 @@ function buildScoreData(customer) {
       history,
       balance,
     },
-    networkPercentile: clamp(Math.round(scorePct) - 6, 8, 96),
-    history: Array.from({ length: 6 }, (_, index) => clamp(
+    networkPercentile: resolvedCustomer.networkPercentile ?? clamp(Math.round(scorePct) - 6, 8, 96),
+    history: resolvedCustomer.scoreHistory?.map((item) => item.score) || Array.from({ length: 6 }, (_, index) => clamp(
       Math.round(resolvedCustomer.gramScore - ((5 - index) * 24)),
       300,
       resolvedCustomer.maxScore,
     )),
-    historyLabels: ["May", "Jun", "Jul", "Aug", "Sep", "Oct"],
+    historyLabels: resolvedCustomer.scoreHistory?.map((item) => new Date(item.calculatedAt).toLocaleDateString("en-IN", { month: "short" })) || ["May", "Jun", "Jul", "Aug", "Sep", "Oct"],
   };
 }
 
@@ -818,6 +827,7 @@ export default function App() {
             onNavigate={handleTabNavigation}
             onNetworkSync={() => navigate(S.networkSync)}
             onSignOut={() => {
+              clearSession();
               showToast("Signed out");
               reset(S.login);
             }}

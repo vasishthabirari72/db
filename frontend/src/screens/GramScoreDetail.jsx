@@ -16,6 +16,7 @@
 // Deps: pure React, no external libraries
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useI18n } from "../i18n/i18n.jsx";
 
 // ─── Design tokens ────────────────────────────────────────────────
 const tk = {
@@ -828,12 +829,7 @@ function VerdictHero({ cfg, score, max, updated, animate }) {
 }
 
 // ─── Bottom Nav ───────────────────────────────────────────────────
-const NAV_ITEMS = [
-  { id:"home",      label:"HOME"      },
-  { id:"customers", label:"CUSTOMERS" },
-  { id:"reports",   label:"REPORTS"   },
-  { id:"settings",  label:"SETTINGS"  },
-];
+
 function NavIcon({ id }) {
   const s = { stroke:"currentColor", strokeWidth:"1.8", strokeLinecap:"round", strokeLinejoin:"round" };
   switch(id) {
@@ -845,9 +841,16 @@ function NavIcon({ id }) {
   }
 }
 function BottomNav({ onNavigate }) {
+  const { tr } = useI18n();
+  const navItems = [
+    { id:"home", label: tr("nav.home").toUpperCase() },
+    { id:"customers", label: tr("nav.customers").toUpperCase() },
+    { id:"reports", label: tr("nav.reports").toUpperCase() },
+    { id:"settings", label: tr("nav.settings").toUpperCase() },
+  ];
   return (
     <nav style={{ background:tk.card, borderTop:`1px solid ${tk.border}`, display:"flex", zIndex:100 }}>
-      {NAV_ITEMS.map(item => (
+      {navItems.map(item => (
         <button key={item.id} className="nav-btn"
           onClick={() => onNavigate?.(item.id)}
           style={{ color: item.id === "customers" ? tk.blue : tk.muted }}>

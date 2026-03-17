@@ -4,6 +4,7 @@
 // Deps: pure React, no external libraries
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useI18n } from "../i18n/i18n.jsx";
 
 // â”€â”€â”€ Design tokens â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const t = {
@@ -450,12 +451,7 @@ function HistoryPanel({ history, onSelect, onClose }) {
 }
 
 // â”€â”€â”€ Bottom Nav â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const NAV_ITEMS = [
-  { id: "home",      label: "HOME"      },
-  { id: "customers", label: "CUSTOMERS" },
-  { id: "scan",      label: "SCAN"      },
-  { id: "settings",  label: "SETTINGS"  },
-];
+
 
 function NavIcon({ id }) {
   const s = { stroke: "currentColor", strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round" };
@@ -491,6 +487,13 @@ function NavIcon({ id }) {
 }
 
 function BottomNav({ active = "scan", onNavigate }) {
+  const { tr } = useI18n();
+  const navItems = [
+    { id: "home", label: tr("nav.home").toUpperCase() },
+    { id: "customers", label: tr("nav.customers").toUpperCase() },
+    { id: "scan", label: tr("nav.scan").toUpperCase() },
+    { id: "settings", label: tr("nav.settings").toUpperCase() },
+  ];
   return (
     <nav style={{
       background: t.navBg,
@@ -498,7 +501,7 @@ function BottomNav({ active = "scan", onNavigate }) {
       display: "flex", zIndex: 100,
       paddingBottom: "env(safe-area-inset-bottom)",
     }}>
-      {NAV_ITEMS.map(item => (
+      {navItems.map(item => (
         <button
           key={item.id}
           className="nav-btn"

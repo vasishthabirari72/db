@@ -12,6 +12,7 @@
 // Deps: pure React, no external libraries
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useI18n } from "../i18n/i18n.jsx";
 
 // ─── Design tokens ────────────────────────────────────────────────
 const t = {
@@ -190,6 +191,7 @@ function PrimaryBtn({ label, onClick, disabled, loading, icon }) {
 
 // ─── Back button ──────────────────────────────────────────────────
 function BackBtn({ onClick }) {
+  const { tr } = useI18n();
   return (
     <button onClick={onClick} style={{
       background:"none", border:`1.5px solid ${t.border}`, borderRadius:12,
@@ -204,7 +206,7 @@ function BackBtn({ onClick }) {
       <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
         <path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
-      Back
+      {tr("common.back")}
     </button>
   );
 }
@@ -213,6 +215,7 @@ function BackBtn({ onClick }) {
 // STEP 0 — Welcome splash
 // ══════════════════════════════════════════════════════════════════
 function StepWelcome({ onNext }) {
+  const { tr } = useI18n();
   const [shown, setShown] = useState(false);
   useEffect(() => { const id = setTimeout(() => setShown(true), 80); return () => clearTimeout(id); }, []);
 
@@ -274,7 +277,7 @@ function StepWelcome({ onNext }) {
       </div>
 
       <div style={{ animation:"fadeUp 0.4s ease 0.7s both" }}>
-        <PrimaryBtn label="Set Up My Store" onClick={onNext} icon="→"/>
+        <PrimaryBtn label={tr("onboarding.set_up_store")} onClick={onNext} icon="→"/>
         <div style={{ textAlign:"center", marginTop:12, fontSize:11, color:t.muted }}>
           Takes less than 2 minutes · Free to start
         </div>
@@ -287,6 +290,7 @@ function StepWelcome({ onNext }) {
 // STEP 1 — Store identity
 // ══════════════════════════════════════════════════════════════════
 function StepIdentity({ data, onChange, onNext, onBack }) {
+  const { tr } = useI18n();
   const valid = data.storeName.trim().length >= 2 && data.ownerName.trim().length >= 2;
 
   return (
@@ -309,8 +313,8 @@ function StepIdentity({ data, onChange, onNext, onBack }) {
         </div>
 
         <TextInput
-          label="Store Name"
-          placeholder="e.g. Sharma Kirana Store"
+          label={tr("onboarding.store_name")}
+          placeholder={tr("onboarding.store_name_placeholder")}
           value={data.storeName}
           onChange={v => onChange({ ...data, storeName: v })}
           hint="Your shop's trading name — exactly as customers know it"
@@ -324,7 +328,7 @@ function StepIdentity({ data, onChange, onNext, onBack }) {
           hint="Your name as the registered store owner"
         />
         <TextInput
-          label="City / Town"
+          label={tr("onboarding.city_town")}
           placeholder="e.g. Nashik, Maharashtra"
           value={data.city}
           onChange={v => onChange({ ...data, city: v })}
@@ -335,7 +339,7 @@ function StepIdentity({ data, onChange, onNext, onBack }) {
       <div style={{ display:"flex", gap:10 }}>
         <BackBtn onClick={onBack}/>
         <div style={{ flex:1 }}>
-          <PrimaryBtn label="Continue" onClick={onNext} disabled={!valid}/>
+          <PrimaryBtn label={tr("onboarding.continue")} onClick={onNext} disabled={!valid}/>
         </div>
       </div>
     </div>
@@ -346,6 +350,7 @@ function StepIdentity({ data, onChange, onNext, onBack }) {
 // STEP 2 — Business category
 // ══════════════════════════════════════════════════════════════════
 function StepCategory({ data, onChange, onNext, onBack }) {
+  const { tr } = useI18n();
   const selected = data.category;
 
   return (
@@ -399,7 +404,7 @@ function StepCategory({ data, onChange, onNext, onBack }) {
       <div style={{ display:"flex", gap:10, marginTop:20 }}>
         <BackBtn onClick={onBack}/>
         <div style={{ flex:1 }}>
-          <PrimaryBtn label="Continue" onClick={onNext} disabled={!selected}/>
+          <PrimaryBtn label={tr("onboarding.continue")} onClick={onNext} disabled={!selected}/>
         </div>
       </div>
     </div>
@@ -410,6 +415,7 @@ function StepCategory({ data, onChange, onNext, onBack }) {
 // STEP 3 — Credit limit
 // ══════════════════════════════════════════════════════════════════
 function StepCreditLimit({ data, onChange, onNext, onBack }) {
+  const { tr } = useI18n();
   const limit = data.creditLimit || 2000;
   const MIN = 100, MAX = 25000;
 
@@ -540,7 +546,7 @@ function StepCreditLimit({ data, onChange, onNext, onBack }) {
       <div style={{ display:"flex", gap:10, marginTop:20 }}>
         <BackBtn onClick={onBack}/>
         <div style={{ flex:1 }}>
-          <PrimaryBtn label="Finish Setup" onClick={onNext} icon="✦"/>
+          <PrimaryBtn label={tr("onboarding.finish_setup")} onClick={onNext} icon="✦"/>
         </div>
       </div>
     </div>
@@ -855,6 +861,7 @@ const GLOBAL_CSS = `
 
 // ─── Topbar ───────────────────────────────────────────────────────
 function Topbar({ step, totalSteps, onSkip }) {
+  const { tr } = useI18n();
   const isWelcome = step === 0;
   const isReveal  = step === totalSteps - 1;
   return (
@@ -865,7 +872,7 @@ function Topbar({ step, totalSteps, onSkip }) {
       <div style={{ display:"flex", alignItems:"center", gap:8 }}>
         {!isWelcome && !isReveal && <LogoMark size={28}/>}
         <span style={{ fontSize:14, fontWeight:700, color:t.muted }}>
-          {isReveal ? "" : isWelcome ? "" : `Step ${step} of ${totalSteps - 2}`}
+          {isReveal ? "" : isWelcome ? "" : tr("onboarding.step_of", { step, total: totalSteps - 2 })}
         </span>
       </div>
       {!isReveal && !isWelcome && (
@@ -878,7 +885,7 @@ function Topbar({ step, totalSteps, onSkip }) {
           onMouseEnter={e => e.currentTarget.style.color = t.text}
           onMouseLeave={e => e.currentTarget.style.color = t.muted}
         >
-          Skip setup
+          {tr("onboarding.skip_setup")}
         </button>
       )}
     </div>

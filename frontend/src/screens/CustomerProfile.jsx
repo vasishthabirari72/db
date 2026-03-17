@@ -6,6 +6,8 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
+
 // â”€â”€â”€ Design tokens â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const t = {
   blue:        "#2347F5",
@@ -63,6 +65,130 @@ const SCORE_BREAKDOWN = [
   { label: "Credit history",     score: 65, max: 100 },
   { label: "Balance vs limit",   score: 58, max: 100 },
 ];
+
+function getToken() {
+  return localStorage.getItem("gramsync_token");
+}
+
+async function apiFetch(path) {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
+    },
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.message || data.error || "Request failed");
+  }
+
+  return data.data;
+}
+
+function formatMemberSince(value) {
+  if (!value) {
+    return DEFAULT_CUSTOMER.since;
+  }
+
+  return new Date(value).toLocaleDateString("en-IN", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function formatTxnDate(value) {
+  const date = new Date(value);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diffDays = Math.round((today - target) / 86_400_000);
+
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+
+  return date.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+  });
+}
+
+function normaliseProfileTransactions(transactions = []) {
+  return transactions.map((transaction) => {
+    if (!transaction.createdAt && transaction.date && transaction.time) {
+      return {
+        id: transaction.id,
+        date: transaction.date,
+        time: transaction.time,
+        type: transaction.type === "JAMA" || transaction.type === "jama" ? "jama" : "udhar",
+        amount: Number(transaction.amount || 0),
+        label: transaction.label || transaction.description || "Transaction",
+        synced: transaction.synced ?? transaction.status === "SYNCED",
+        note: transaction.note || transaction.disputeNote || "",
+      };
+    }
+
+    const createdAt = transaction.createdAt || new Date().toISOString();
+
+    return {
+      id: transaction.id,
+      date: formatTxnDate(createdAt),
+      time: new Date(createdAt).toLocaleTimeString("en-IN", {
+        hour: "numeric",
+        minute: "2-digit",
+      }),
+      type: transaction.type === "JAMA" ? "jama" : "udhar",
+      amount: Number(transaction.amount || 0),
+      label: transaction.description || (transaction.type === "JAMA" ? "Payment Received" : "Credit Given"),
+      synced: transaction.status === "SYNCED",
+      note: transaction.note || transaction.disputeNote || "",
+    };
+  });
+}
+
+function buildScoreBreakdown(scoreData) {
+  if (!scoreData) {
+    return SCORE_BREAKDOWN;
+  }
+
+  return [
+    { label: "Repayment rate", score: scoreData.repaymentRate ?? 0, max: 100 },
+    { label: "Payment frequency", score: scoreData.paymentFrequency ?? 0, max: 100 },
+    { label: "Credit history", score: scoreData.creditHistory ?? 0, max: 100 },
+    { label: "Balance vs limit", score: scoreData.balanceVsLimit ?? 0, max: 100 },
+  ];
+}
+
+function normaliseProfileCustomer(customer, transactions = [], scoreData = null) {
+  const totalUdhar = transactions
+    .filter((transaction) => transaction.type === "udhar")
+    .reduce((sum, transaction) => sum + transaction.amount, 0);
+  const totalJama = transactions
+    .filter((transaction) => transaction.type === "jama")
+    .reduce((sum, transaction) => sum + transaction.amount, 0);
+  const balance = Number(customer.balance ?? customer.currentBalance ?? DEFAULT_CUSTOMER.balance);
+  const latestActivity = transactions[0];
+
+  return {
+    ...DEFAULT_CUSTOMER,
+    ...customer,
+    initials: customer.initials || customer.name?.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase() || DEFAULT_CUSTOMER.initials,
+    since: formatMemberSince(customer.memberSince || customer.createdAt),
+    memberSince: customer.memberSince || customer.createdAt || null,
+    gramScore: scoreData?.score ?? customer.latestScore ?? customer.gramScore ?? DEFAULT_CUSTOMER.gramScore,
+    maxScore: 900,
+    creditLimit: Number(customer.creditLimit ?? DEFAULT_CUSTOMER.creditLimit),
+    balance,
+    balanceType: balance >= 0 ? "udhar" : "jama",
+    totalUdhar: totalUdhar || Number(customer.totalUdhar ?? 0),
+    totalJama: totalJama || Number(customer.totalJama ?? 0),
+    lastActivity: latestActivity ? `${latestActivity.date}, ${latestActivity.time}` : "No recent activity",
+    scoreBreakdown: buildScoreBreakdown(scoreData),
+    networkPercentile: scoreData?.networkPercentile ?? null,
+    scoreHistory: scoreData?.history ?? null,
+  };
+}
 
 // â”€â”€â”€ Global CSS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const GLOBAL_CSS = `
@@ -388,6 +514,7 @@ function ScoreSheet({ customer, onClose }) {
   const statusLabel = pct >= 70 ? "SAFE TO LEND" : pct >= 45 ? "LEND WITH CAUTION" : "HIGH RISK";
   const statusColor = pct >= 70 ? t.green : pct >= 45 ? t.yellow : t.red;
   const statusBg    = pct >= 70 ? t.greenPale : pct >= 45 ? t.yellowPale : t.redPale;
+  const breakdown = customer.scoreBreakdown || SCORE_BREAKDOWN;
 
   return (
     <div className="sheet-overlay" onClick={onClose}>
@@ -409,7 +536,7 @@ function ScoreSheet({ customer, onClose }) {
 
         <div style={{ marginBottom:16 }}>
           <div style={{ fontSize:12, fontWeight:700, color:t.blue, letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:14 }}>Score Breakdown</div>
-          {SCORE_BREAKDOWN.map((b, i) => (
+          {breakdown.map((b, i) => (
             <ScoreBar key={i} label={b.label} score={b.score} max={b.max} delay={i * 100} animate={animate}/>
           ))}
         </div>
@@ -425,6 +552,7 @@ function ScoreSheet({ customer, onClose }) {
 // â”€â”€â”€ Balance Hero â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function BalanceHero({ customer }) {
   const isUdhar = customer.balanceType === "udhar";
+  const displayBalance = Math.abs(Number(customer.balance || 0));
   return (
     <div style={{
       background: isUdhar
@@ -440,14 +568,14 @@ function BalanceHero({ customer }) {
         <div>
           <div style={{ fontSize:11, fontWeight:600, opacity:0.75, letterSpacing:"0.07em", textTransform:"uppercase" }}>Total Balance</div>
           <div style={{ fontSize:32, fontWeight:800, fontFamily:"'JetBrains Mono',monospace", marginTop:2, animation:"balanceCount 0.4s ease" }}>
-            ₹{customer.balance.toLocaleString("en-IN")}.00
+            ₹{displayBalance.toLocaleString("en-IN")}.00
           </div>
         </div>
         <div style={{
           background:"rgba(255,255,255,0.18)", borderRadius:12,
           padding:"6px 14px", fontSize:12, fontWeight:700,
         }}>
-          {isUdhar ? "UDHAR (YOU OWE)" : "JAMA (THEY OWE)"}
+          {isUdhar ? "UDHAR (THEY OWE)" : "JAMA (YOU OWE)"}
         </div>
       </div>
 
@@ -520,7 +648,15 @@ function FilterChips({ active, onChange }) {
 }
 
 // â”€â”€â”€ Transaction List â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-function TransactionList({ transactions, filter, onTxnPress }) {
+function TransactionList({ transactions, filter, onTxnPress, loading }) {
+  if (loading) {
+    return (
+      <div style={{ textAlign:"center", padding:"40px 16px", color:t.muted, fontSize:13 }}>
+        Loading customer ledger...
+      </div>
+    );
+  }
+
   const filtered = transactions.filter(tx => {
     if (filter === "All")     return true;
     if (filter === "Udhar")   return tx.type === "udhar";
@@ -666,12 +802,82 @@ export default function CustomerProfile({
   onScore      = null,
   onTxnPress   = null,
 }) {
-  const resolvedCustomer = { ...DEFAULT_CUSTOMER, ...customer };
   const [filter,   setFilter]   = useState("All");
   const [sheet,    setSheet]    = useState(null); // null | "reminder" | "score" | txn object
   const [shown,    setShown]    = useState(false);
+  const [loading,  setLoading]  = useState(Boolean(customer?.id));
+  const [loadError, setLoadError] = useState(null);
+  const [resolvedCustomer, setResolvedCustomer] = useState(() =>
+    normaliseProfileCustomer({ ...DEFAULT_CUSTOMER, ...customer }, transactions),
+  );
+  const [resolvedTransactions, setResolvedTransactions] = useState(() =>
+    normaliseProfileTransactions(transactions),
+  );
 
   useEffect(() => { const id = setTimeout(() => setShown(true), 60); return () => clearTimeout(id); }, []);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadProfile() {
+      if (!customer?.id) {
+        setResolvedCustomer(normaliseProfileCustomer({ ...DEFAULT_CUSTOMER, ...customer }, transactions));
+        setResolvedTransactions(normaliseProfileTransactions(transactions));
+        setLoading(false);
+        setLoadError(null);
+        return;
+      }
+
+      setLoading(true);
+      setLoadError(null);
+
+      try {
+        const [detail, ledger, score] = await Promise.all([
+          apiFetch(`/customers/${customer.id}`),
+          apiFetch(`/customers/${customer.id}/transactions`),
+          apiFetch(`/customers/${customer.id}/score`),
+        ]);
+
+        if (ignore) {
+          return;
+        }
+
+        const mappedTransactions = normaliseProfileTransactions(ledger || []);
+        setResolvedTransactions(mappedTransactions);
+        setResolvedCustomer(normaliseProfileCustomer(detail || customer, mappedTransactions, score));
+      } catch (error) {
+        if (ignore) {
+          return;
+        }
+
+        setLoadError(error.message || "Failed to load customer ledger");
+        setResolvedCustomer(normaliseProfileCustomer({ ...DEFAULT_CUSTOMER, ...customer }, transactions));
+        setResolvedTransactions(normaliseProfileTransactions(transactions));
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadProfile();
+
+    return () => {
+      ignore = true;
+    };
+  }, [
+    customer?.id,
+    customer?.name,
+    customer?.phone,
+    customer?.initials,
+    customer?.balance,
+    customer?.currentBalance,
+    customer?.latestScore,
+    customer?.creditLimit,
+    customer?.status,
+    customer?.memberSince,
+    transactions,
+  ]);
 
   const handleSendReminder = useCallback((channel, msg) => {
     setSheet(null);
@@ -722,6 +928,11 @@ export default function CustomerProfile({
         />
 
         <div style={{ flex:1, overflowY:"auto" }}>
+          {loadError && (
+            <div style={{ margin:"12px 16px 0", background:t.redPale, borderRadius:12, padding:"12px 14px", color:t.red, fontSize:12, fontWeight:600 }}>
+              {loadError}
+            </div>
+          )}
           <BalanceHero customer={resolvedCustomer}/>
           <QuickActions
             customer={resolvedCustomer}
@@ -742,9 +953,10 @@ export default function CustomerProfile({
             <FilterChips active={filter} onChange={setFilter}/>
           </div>
           <TransactionList
-            transactions={transactions}
+            transactions={resolvedTransactions}
             filter={filter}
             onTxnPress={handleTransactionPress}
+            loading={loading}
           />
         </div>
 

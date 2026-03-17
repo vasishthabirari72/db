@@ -4,6 +4,7 @@
 // Deps: pure React, no external libraries
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useI18n } from "../i18n/i18n.jsx";
 
 const t = {
   blue:       "#2347F5",
@@ -277,14 +278,23 @@ function Numpad({ onPress, onDelete, onBiometric, showBiometric = false }) {
 // STEP 1 — Phone number entry
 // ══════════════════════════════════════════════════════════════════
 function PhoneStep({ onNext }) {
+  const { tr } = useI18n();
   const [phone,   setPhone]   = useState("");
   const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState("");
   const valid = phone.replace(/\D/g,"").length === 10;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!valid) return;
     setLoading(true);
-    setTimeout(() => { setLoading(false); onNext(phone); }, 1400);
+    setError("");
+    try {
+      await onNext(phone);
+    } catch (err) {
+      setError(err.message || "Unable to send OTP");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -293,7 +303,7 @@ function PhoneStep({ onNext }) {
       <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", paddingBottom:20 }}>
         <LogoMark size={64} />
         <div style={{ marginTop:20, marginBottom:8, fontSize:"var(--auth-title-size)", fontWeight:800, color:t.text, textAlign:"center" }}>
-          Welcome to GramSync
+          {tr("auth.welcome_title")}
         </div>
         <div style={{ fontSize:"var(--auth-sub-size)", color:t.muted, textAlign:"center", lineHeight:1.6 }}>
           India's trusted merchant credit network.<br/>Enter your mobile number to continue.
@@ -336,8 +346,13 @@ function PhoneStep({ onNext }) {
         </div>
 
         <div style={{ fontSize:11, color:t.muted, marginTop:10, textAlign:"center" }}>
-          We'll send a 6-digit OTP to verify your number
+          {tr("auth.otp_subtitle")}
         </div>
+        {error && (
+          <div style={{ fontSize:12, color:t.red, marginTop:10, textAlign:"center", fontWeight:600 }}>
+            {error}
+          </div>
+        )}
       </div>
 
       <button className="auth-btn" onClick={handleSubmit} disabled={!valid || loading}
@@ -346,13 +361,13 @@ function PhoneStep({ onNext }) {
           color: valid ? "#fff" : t.muted,
           boxShadow: valid ? "0 4px 18px rgba(35,71,245,0.35)" : "none",
         }}>
-        {loading ? <DotLoader /> : "Send OTP →"}
+        {loading ? <DotLoader /> : tr("auth.send_otp")}
       </button>
 
       <div style={{ textAlign:"center", marginTop:16, fontSize:12, color:t.muted }}>
         By continuing you agree to our{" "}
-        <span style={{ color:t.blue, fontWeight:600, cursor:"pointer" }}>Terms</span> &amp;{" "}
-        <span style={{ color:t.blue, fontWeight:600, cursor:"pointer" }}>Privacy Policy</span>
+        <span style={{ color:t.blue, fontWeight:600, cursor:"pointer" }}>{tr("auth.terms")}</span> &amp;{" "}
+        <span style={{ color:t.blue, fontWeight:600, cursor:"pointer" }}>{tr("auth.privacy_policy")}</span>
       </div>
     </div>
   );
@@ -362,6 +377,7 @@ function PhoneStep({ onNext }) {
 // STEP 2 — OTP verification
 // ══════════════════════════════════════════════════════════════════
 function OTPStep({ phone, onNext, onBack }) {
+  const { tr } = useI18n();
   const [otp,       setOtp]     = useState(["","","","","",""]);
   const [error,     setError]   = useState(false);
   const [verifying, setVerify]  = useState(false);
@@ -466,16 +482,16 @@ function OTPStep({ phone, onNext, onBack }) {
 
         {error && (
           <div style={{ textAlign:"center", color:t.red, fontSize:12, fontWeight:600, marginBottom:8 }}>
-            ✕ Incorrect OTP. Please try again.
+            {tr("auth.incorrect_otp")}
           </div>
         )}
 
         <div style={{ textAlign:"center", fontSize:12, color:t.muted }}>
           {resendSec > 0 ? (
-            <>Resend OTP in <strong style={{ color:t.text }}>{resendSec}s</strong></>
+            <>{tr("auth.resend_otp_in", { seconds: resendSec })}</>
           ) : (
             <span onClick={() => { setResend(30); setOtp(["","","","","",""]); }} style={{ color:t.blue, fontWeight:700, cursor:"pointer" }}>
-              Resend OTP
+              {tr("auth.resend_otp")}
             </span>
           )}
         </div>
@@ -487,7 +503,7 @@ function OTPStep({ phone, onNext, onBack }) {
           <circle cx="12" cy="12" r="10" stroke={t.blue} strokeWidth="1.5"/>
           <path d="M12 8v4m0 4h.01" stroke={t.blue} strokeWidth="1.8" strokeLinecap="round"/>
         </svg>
-        <span style={{ fontSize:11, color:t.blue, fontWeight:600 }}>Demo: enter any 6 digits to continue</span>
+        <span style={{ fontSize:11, color:t.blue, fontWeight:600 }}>{tr("auth.demo_hint")}</span>
       </div>
 
       <button className="auth-btn" onClick={() => triggerVerify(otp)}
@@ -497,7 +513,7 @@ function OTPStep({ phone, onNext, onBack }) {
           color: otp.every(d=>d) ? "#fff" : t.muted,
           boxShadow: otp.every(d=>d) ? "0 4px 18px rgba(35,71,245,0.35)" : "none",
         }}>
-        {verifying ? <DotLoader /> : "Verify OTP →"}
+        {verifying ? <DotLoader /> : tr("auth.verify_otp")}
       </button>
 
       <button onClick={onBack} style={{
@@ -515,6 +531,7 @@ function OTPStep({ phone, onNext, onBack }) {
 // STEP 3 — PIN setup / entry
 // ══════════════════════════════════════════════════════════════════
 function PINStep({ isSetup = true, onNext, onBack }) {
+  const { tr } = useI18n();
   const [pin,       setPin]      = useState("");
   const [confirmPin,setConfirm]  = useState("");
   const [stage,     setStage]    = useState("enter"); // "enter" | "confirm"
@@ -570,15 +587,15 @@ function PINStep({ isSetup = true, onNext, onBack }) {
         <div style={{ textAlign:"center" }}>
           <div style={{ fontSize:"calc(var(--auth-title-size) - 2px)", fontWeight:800, color:t.text, marginBottom:6 }}>
             {isSetup
-              ? (stage === "confirm" ? "Confirm your PIN" : "Set up your PIN")
-              : "Enter your PIN"}
+              ? (stage === "confirm" ? tr("auth.confirm_pin") : tr("auth.set_up_pin"))
+              : tr("auth.enter_pin")}
           </div>
           <div style={{ fontSize:"var(--auth-sub-size)", color:t.muted, lineHeight:1.6 }}>
             {isSetup
               ? (stage === "confirm"
-                  ? "Re-enter the 4-digit PIN to confirm"
-                  : "Choose a 4-digit PIN to secure your account")
-              : "Enter your 4-digit PIN to continue"}
+                  ? tr("auth.pin_confirm_help")
+                  : tr("auth.pin_setup_help"))
+              : tr("auth.pin_enter_help")}
           </div>
         </div>
 
@@ -586,7 +603,7 @@ function PINStep({ isSetup = true, onNext, onBack }) {
 
         {error && (
           <div style={{ fontSize:12, color:t.red, fontWeight:600 }}>
-            PINs don't match. Try again.
+            {tr("auth.pin_mismatch")}
           </div>
         )}
       </div>
@@ -602,7 +619,7 @@ function PINStep({ isSetup = true, onNext, onBack }) {
           fontFamily:"'Sora',sans-serif", fontSize:12, color:t.muted,
           cursor:"pointer", textAlign:"center", fontWeight:500,
         }}>
-          Forgot PIN? Recover via OTP
+          {tr("auth.forgot_pin")}
         </button>
       )}
     </div>
@@ -613,6 +630,7 @@ function PINStep({ isSetup = true, onNext, onBack }) {
 // STEP 4 — Success / Welcome
 // ══════════════════════════════════════════════════════════════════
 function SuccessStep({ isNewUser = true, onDone }) {
+  const { tr } = useI18n();
   return (
     <div style={{
       flex:1, display:"flex", flexDirection:"column",
@@ -636,7 +654,7 @@ function SuccessStep({ isNewUser = true, onDone }) {
       </div>
 
       <div style={{ fontSize:"var(--auth-title-size)", fontWeight:800, color:t.text, textAlign:"center", marginBottom:10 }}>
-        {isNewUser ? "You're all set! 🎉" : "Welcome back!"}
+        {isNewUser ? tr("auth.success_new") : tr("auth.success_returning")}
       </div>
       <div style={{ fontSize:"var(--auth-sub-size)", color:t.muted, textAlign:"center", lineHeight:1.7, marginBottom:36 }}>
         {isNewUser

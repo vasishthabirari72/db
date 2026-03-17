@@ -4,6 +4,7 @@
 // Deps: pure React, no external libraries
 
 import { useState, useCallback, useEffect } from "react";
+import { LANGUAGES, useI18n } from "../i18n/i18n.jsx";
 
 const t = {
   blue:       "#2347F5",
@@ -283,6 +284,89 @@ function EditProfileModal({ profile, onSave, onClose }) {
   );
 }
 
+// ─── Language Modal ───────────────────────────────────────────────
+function LanguageModal({ language, onSelect, onClose }) {
+  const { tr } = useI18n();
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-sheet" onClick={(e) => e.stopPropagation()}>
+        <div style={{ width: 38, height: 4, borderRadius: 99, background: t.border, margin: "0 auto 20px" }} />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: t.text }}>{tr("settings.select_language")}</div>
+          <button
+            onClick={onClose}
+            style={{
+              background: t.bg,
+              border: "none",
+              borderRadius: "50%",
+              width: 30,
+              height: 30,
+              cursor: "pointer",
+              color: t.muted,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 18,
+              fontWeight: 700,
+            }}
+          >
+            ×
+          </button>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {Object.values(LANGUAGES).map((lang) => {
+            const active = lang.code === language;
+            return (
+              <button
+                key={lang.code}
+                onClick={() => onSelect(lang.code)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 10,
+                  padding: "14px 14px",
+                  borderRadius: 14,
+                  border: `1.5px solid ${active ? t.blue : t.border}`,
+                  background: active ? "#F4F6FF" : "#fff",
+                  cursor: "pointer",
+                  fontFamily: "'Sora',sans-serif",
+                }}
+              >
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: t.text }}>{lang.nativeLabel}</div>
+                  <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>{lang.label}</div>
+                </div>
+                {active ? (
+                  <div
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: "50%",
+                      background: t.blue,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
+                      <path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                ) : (
+                  <div style={{ width: 22, height: 22, borderRadius: "50%", border: `2px solid ${t.border}` }} />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // â”€â”€â”€ Confirm Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function ConfirmModal({ title, message, confirmLabel, confirmColor = t.red, onConfirm, onClose }) {
   return (
@@ -321,12 +405,7 @@ function ConfirmModal({ title, message, confirmLabel, confirmColor = t.red, onCo
 }
 
 // â”€â”€â”€ Nav icons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const NAV_ITEMS = [
-  { id: "home",     label: "HOME"     },
-  { id: "customers",label: "CUSTOMERS"},
-  { id: "reports",  label: "REPORTS"  },
-  { id: "settings", label: "SETTINGS" },
-];
+
 function NavIcon({ id }) {
   const s = { stroke:"currentColor", strokeWidth:"1.8", strokeLinecap:"round", strokeLinejoin:"round" };
   switch(id) {
@@ -338,9 +417,16 @@ function NavIcon({ id }) {
   }
 }
 function BottomNav({ onNavigate }) {
+  const { tr } = useI18n();
+  const navItems = [
+    { id: "home", label: tr("nav.home").toUpperCase() },
+    { id: "customers", label: tr("nav.customers").toUpperCase() },
+    { id: "reports", label: tr("nav.reports").toUpperCase() },
+    { id: "settings", label: tr("nav.settings").toUpperCase() },
+  ];
   return (
     <nav style={{ background:"#fff", borderTop:`1px solid ${t.border}`, display:"flex", zIndex:100 }}>
-      {NAV_ITEMS.map(item => (
+      {navItems.map(item => (
         <button key={item.id} className="nav-btn" onClick={() => onNavigate?.(item.id)}
           style={{ color: item.id === "settings" ? t.blue : t.muted }}>
           <NavIcon id={item.id} />
@@ -382,6 +468,7 @@ export default function Settings({
   onBack     = () => {},
   onLogout   = () => {},
 }) {
+  const { language, setLanguage, languageMeta, tr } = useI18n();
   const [profile,         setProfile]        = useState(initialProfile);
   const [notifications,   setNotifications]  = useState(true);
   const [smsAlerts,       setSmsAlerts]      = useState(false);
@@ -393,8 +480,7 @@ export default function Settings({
       return false;
     }
   });
-  const [language,        setLanguage]       = useState("English");
-  const [modal,           setModal]          = useState(null); // null | "editProfile" | "logout" | "clearData" | "deleteAccount"
+  const [modal,           setModal]          = useState(null); // null | "editProfile" | "logout" | "clearData" | "deleteAccount" | "language"
   const [shown,           setShown]          = useState(false);
 
   // Entrance animation
@@ -431,7 +517,7 @@ export default function Settings({
               <path d="M19 12H5M12 5l-7 7 7 7" stroke={t.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
-          <div style={{ fontSize: 18, fontWeight: 700, color: t.text }}>Settings</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: t.text }}>{tr("settings.title")}</div>
         </div>
 
         {/* Scrollable content */}
@@ -451,7 +537,7 @@ export default function Settings({
           />
 
           {/* Store */}
-          <Section label="Store">
+          <Section label={tr("settings.store")}>
             <NavRow
               icon={ic(<Ic path="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />, t.bluePale)}
               label={profile.storeName}
@@ -478,7 +564,7 @@ export default function Settings({
           </Section>
 
           {/* Notifications */}
-          <Section label="Notifications">
+          <Section label={tr("settings.notifications")}>
             <ToggleRow
               icon={ic(<Ic path="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />, "#FFF0E5")}
               label="Push Notifications"
@@ -497,7 +583,7 @@ export default function Settings({
           </Section>
 
           {/* Security */}
-          <Section label="Security">
+          <Section label={tr("settings.security")}>
             <ToggleRow
               icon={ic(<Ic path="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" color={t.green} />, t.greenPale)}
               label="Biometric Login"
@@ -525,32 +611,32 @@ export default function Settings({
           </Section>
 
           {/* Preferences */}
-          <Section label="Preferences">
+          <Section label={tr("settings.preferences")}>
             <NavRow
               icon={ic(<Ic path="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />, t.bluePale)}
-              label="Language"
-              sub={language}
-              onClick={() => {}}
+              label={tr("settings.language")}
+              sub={languageMeta?.nativeLabel || "English"}
+              onClick={() => setModal("language")}
             />
             <Divider />
             <ToggleRow
               icon={ic(<Ic path="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />, t.bluePale)}
-              label="Dark Mode"
-              sub="Switch to dark theme"
+              label={tr("settings.dark_mode")}
+              sub={tr("settings.dark_mode_sub")}
               value={darkMode}
               onChange={setDarkMode}
             />
             <Divider />
             <NavRow
               icon={ic(<Ic path="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />, t.bluePale)}
-              label="Export Data"
-              sub="Download transactions as PDF/CSV"
+              label={tr("settings.export_data")}
+              sub={tr("settings.export_data_sub")}
               onClick={() => {}}
             />
           </Section>
 
           {/* Support & About */}
-          <Section label="Support">
+          <Section label={tr("settings.support")}>
             <NavRow
               icon={ic(<Ic path="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />, t.bluePale)}
               label="Help & FAQ"
@@ -605,8 +691,8 @@ export default function Settings({
                   </svg>
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Log Out</div>
-                  <div style={{ fontSize: 11, color: t.muted, marginTop: 1 }}>Sign out of this device</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{tr("settings.logout")}</div>
+                  <div style={{ fontSize: 11, color: t.muted, marginTop: 1 }}>{tr("settings.logout_sub")}</div>
                 </div>
                 <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
                   <path d="M9 18l6-6-6-6" stroke={t.muted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -620,8 +706,8 @@ export default function Settings({
                   </svg>
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Clear Local Data</div>
-                  <div style={{ fontSize: 11, color: t.muted, marginTop: 1 }}>Remove cached data from this device</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{tr("settings.clear_local_data")}</div>
+                  <div style={{ fontSize: 11, color: t.muted, marginTop: 1 }}>{tr("settings.clear_local_data_sub")}</div>
                 </div>
                 <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
                   <path d="M9 18l6-6-6-6" stroke={t.muted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -635,8 +721,8 @@ export default function Settings({
                   </svg>
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: t.red }}>Delete Account</div>
-                  <div style={{ fontSize: 11, color: t.muted, marginTop: 1 }}>Permanently remove all your data</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: t.red }}>{tr("settings.delete_account")}</div>
+                  <div style={{ fontSize: 11, color: t.muted, marginTop: 1 }}>{tr("settings.delete_account_sub")}</div>
                 </div>
                 <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
                   <path d="M9 18l6-6-6-6" stroke={t.muted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -661,11 +747,21 @@ export default function Settings({
             onClose={() => setModal(null)}
           />
         )}
+        {modal === "language" && (
+          <LanguageModal
+            language={language}
+            onSelect={(next) => {
+              setLanguage(next);
+              setModal(null);
+            }}
+            onClose={() => setModal(null)}
+          />
+        )}
         {modal === "logout" && (
           <ConfirmModal
-            title="Log Out?"
-            message="You'll need to sign in again to access your merchant account."
-            confirmLabel="Log Out"
+            title={tr("settings.logout_title")}
+            message={tr("settings.logout_message")}
+            confirmLabel={tr("settings.logout")}
             confirmColor={t.yellow}
             onConfirm={() => { setModal(null); onLogout(); }}
             onClose={() => setModal(null)}
@@ -673,9 +769,9 @@ export default function Settings({
         )}
         {modal === "clearData" && (
           <ConfirmModal
-            title="Clear Local Data?"
-            message="This will remove all offline-cached data. Synced transactions are safe in the cloud."
-            confirmLabel="Clear Data"
+            title={tr("settings.clear_local_data_title")}
+            message={tr("settings.clear_local_data_message")}
+            confirmLabel={tr("settings.clear_local_data")}
             confirmColor={t.orange}
             onConfirm={() => setModal(null)}
             onClose={() => setModal(null)}
@@ -683,9 +779,9 @@ export default function Settings({
         )}
         {modal === "deleteAccount" && (
           <ConfirmModal
-            title="Delete Account?"
-            message="This is permanent and cannot be undone. All your store data, customers, and transactions will be erased."
-            confirmLabel="Delete Forever"
+            title={tr("settings.delete_account_title")}
+            message={tr("settings.delete_account_message")}
+            confirmLabel={tr("txn.delete_forever")}
             confirmColor={t.red}
             onConfirm={() => setModal(null)}
             onClose={() => setModal(null)}
